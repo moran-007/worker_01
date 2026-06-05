@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}编辑学生 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">学生管理</p>
+        <h1>编辑学生</h1>
+    </div>
+    <a class="button" href="{{ url_for('students') }}">返回列表</a>
+</header>
+
+<section class="panel">
+    <form method="post" class="form-grid">
+        <div class="field"><label>姓名</label><input name="name" required value="{{ student.name }}"></div>
+        <div class="field"><label>性别</label><input name="gender" value="{{ student.gender or '' }}"></div>
+        <div class="field"><label>年龄</label><input name="age" type="number" min="0" value="{{ student.age or '' }}"></div>
+        <div class="field"><label>联系电话</label><input name="phone" value="{{ student.phone or '' }}"></div>
+        <div class="field"><label>家长姓名</label><input name="parent_name" value="{{ student.parent_name or '' }}"></div>
+        <div class="field"><label>家长电话</label><input name="parent_phone" value="{{ student.parent_phone or '' }}"></div>
+        <div class="field"><label>就读学校</label><input name="school" value="{{ student.school or '' }}"></div>
+        <div class="field"><label>购买课时</label><input name="purchased_hours" type="number" step="0.5" value="{{ student.purchased_hours }}"></div>
+        <div class="field"><label>赠送课时</label><input name="gift_hours" type="number" step="0.5" value="{{ student.gift_hours }}"></div>
+        <div class="field">
+            <label>状态</label>
+            <select name="status">
+                <option value="active" {{ 'selected' if student.status == 'active' }}>启用</option>
+                <option value="inactive" {{ 'selected' if student.status == 'inactive' }}>停用</option>
+            </select>
+        </div>
+        <div class="field full"><label>备注</label><textarea name="remark">{{ student.remark or '' }}</textarea></div>
+        <div class="field full"><button class="primary" type="submit">保存修改</button></div>
+    </form>
+</section>
+{% endblock %}

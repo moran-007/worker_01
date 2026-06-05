@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}编辑课程类型 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">课程类型</p>
+        <h1>编辑课程类型</h1>
+    </div>
+    <a class="button" href="{{ url_for('lesson_types') }}">返回列表</a>
+</header>
+
+<section class="panel">
+    <form method="post" class="form-grid compact">
+        <div class="field"><label>类型名称</label><input name="type_name" required value="{{ lesson_type.type_name }}"></div>
+        <div class="field"><label>默认课时</label><input name="default_hours" type="number" step="0.5" value="{{ lesson_type.default_hours }}"></div>
+        <div class="field"><label>计入统计</label><label class="check"><input name="count_in_statistics" type="checkbox" {{ 'checked' if lesson_type.count_in_statistics }}> 是</label></div>
+        <div class="field full"><label>备注</label><textarea name="remark">{{ lesson_type.remark or '' }}</textarea></div>
+        <div class="field full"><button class="primary" type="submit">保存修改</button></div>
+    </form>
+</section>
+{% endblock %}

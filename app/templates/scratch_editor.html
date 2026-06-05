@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Scratch 编辑器 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Scratch 课堂</p>
+        <h1>{{ work.title if work else (template.title if template else 'Scratch 编辑器') }}</h1>
+        <p>编辑器会通过消息桥接保存 .sb3 和缩略图；下方保留手动上传兜底。</p>
+    </div>
+    <div class="toolbar">
+        <a class="button" href="{{ config.editor_url }}" target="_blank" rel="noreferrer">新窗口打开编辑器</a>
+        {% if work %}
+        <button type="button" id="submit-work">提交作品</button>
+        <button type="button" id="run-judge">运行测评</button>
+        {% endif %}
+    </div>
+</header>
+
+<section class="panel">
+    <div class="section-title">
+        <h2>编辑器</h2>
+        <span class="muted">work_id={{ work_id or '-' }} · template_id={{ template_id or '-' }}</span>
+    </div>
+    <div id="editor-status" class="notice muted">等待 Scratch GUI 连接保存桥接。</div>
+    <div class="scratch-editor-frame">
+        <iframe id="scratch-frame" title="Scratch Editor"></iframe>
+    </div>
+</section>
+
+{% if work %}
+<section class="panel">
+    <div class="section-title">
+        <h2>手动保存兜底</h2>
+        <span class="muted">当 GUI 尚未接入消息桥时使用</span>
+    </div>
+    <form id="fallback-save-form" class="inline-form">
+        <input type="file" name="file" accept=".sb3,.sb2">
+        <input type="file" name="thumbnail" accept="image/*">
+        <input type="text" name="title" value="{{ work.title }}" placeholder="作品标题">
+        <button type="submit">保存文件</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="panel">
+    <div class="section-title"><h2>接入信息</h2></div>
+    <div class="mini-list">
+        <div><span>编辑器地址</span><strong>{{ config.editor_url }}</strong></div>
+        <div><span>项目文件</span><strong>{{ project_url or '尚未保存作品文件' }}</strong></div>
+        <div><span>OJ API</span><strong>{{ config.oj_api_url }}</strong></div>
+        <div><span>Hydro 地址</span><strong>{{ config.hydro_base_url or '未配置' }}</strong></div>
+        <div><span>本地作品目录</span><strong>{{ config.editor_project_dir }}</strong></div>
+    </div>
+</section>
+
+<script>
+(() => {
+    const context = {
+        type: "class_worker_scratch_context",
+        workId: "{{ work_id }}",
+        templateId: "{{ template_id }}",
+        projectUrl: "{{ project_url }}",
+        saveEndpoint: "{{ url_for('api_editor_save_scratch_work', work_id=work.id) if work else '' }}",
+        fallbackSaveEndpoint: "{{ url_for('api_save_scratch_work', work_id=work.id) if work else '' }}",
+        submitEndpoint: "{{ url_for('api_submit_scratch_work', work_id=work.id) if work else '' }}",
+        judgeEndpoint: "{{ url_for('api_run_scratch_work_judge', work_id=work.id) if work else '' }}"
+    };
+    const frame = document.getElementById("scratch-frame");
+    const status = document.getElementById("editor-status");
+    const editorUrl = new URL("{{ config.editor_url }}", window.location.href);
+    if (context.workId) editorUrl.searchParams.set("work_id", context.workId);
+    if (context.templateId) editorUrl.searchParams.set("template_id", context.templateId);
+    if (context.projectUrl) editorUrl.searchParams.set("project_url", context.projectUrl);
+    frame.src = editorUrl.toString();
+
+    function setStatus(text, tone = "muted") {
+        status.textContent = text;
+        status.className = `notice ${tone}`;
+    }
+
+    function parseMessage(data) {
+        if (!data) return null;
+        if (typeof data === "string") {
+            try { return JSON.parse(data); } catch { return null; }
+        }
+        return data;
+    }
+
+    async function requestJson(url, options = {}) {
+        const response = await fetch(url, { credentials: "include", ...options });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+            throw new Error(data.message || "请求失败");
+        }
+        return data;
+    }
+
+    frame.addEventListener("load", () => {
+        frame.contentWindow?.postMessage(context, "*");
+        setStatus("已向 Scratch GUI 发送保存上下文。");
+    });
+
+    window.addEventListener("message", async (event) => {
+        const payload = parseMessage(event.data);
+        if (!payload || !context.saveEndpoint) return;
+        const type = payload.type || payload.event;
+        const saveTypes = new Set([
+            "class_worker_save_project",
+            "scratch-project-save",
+            "scratch_save_project",
+            "scratchProjectSaved"
+        ]);
+        if (!saveTypes.has(type)) return;
+        try {
+            setStatus("正在保存编辑器作品...");
+            const projectBase64 = payload.project_base64 || payload.sb3_base64 || payload.projectBase64 || payload.project;
+            const thumbnailBase64 = payload.thumbnail_base64 || payload.thumbnailBase64 || payload.thumbnail;
+            const data = await requestJson(context.saveEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: payload.title,
+                    submit_note: payload.submit_note,
+                    project_base64: projectBase64,
+                    thumbnail_base64: thumbnailBase64,
+                    editor_url: frame.src
+                })
+            });
+            setStatus(`已保存：${data.work.title}`, "success");
+        } catch (error) {
+            setStatus(`保存失败：${error.message}`, "error");
+        }
+    });
+
+    document.getElementById("fallback-save-form")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            setStatus("正在上传文件保存...");
+            const formData = new FormData(event.currentTarget);
+            const data = await requestJson(context.fallbackSaveEndpoint, { method: "PUT", body: formData });
+            setStatus(`已保存：${data.work.title}`, "success");
+        } catch (error) {
+            setStatus(`保存失败：${error.message}`, "error");
+        }
+    });
+
+    document.getElementById("submit-work")?.addEventListener("click", async () => {
+        try {
+            const data = await requestJson(context.submitEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ submit_note: "从编辑器提交" })
+            });
+            setStatus(`已提交：${data.work.title}`, "success");
+        } catch (error) {
+            setStatus(`提交失败：${error.message}`, "error");
+        }
+    });
+
+    document.getElementById("run-judge")?.addEventListener("click", async () => {
+        try {
+            const data = await requestJson(context.judgeEndpoint, { method: "POST" });
+            setStatus(`测评完成：${data.result.status} / ${data.result.totalScore}`, "success");
+        } catch (error) {
+            setStatus(`测评失败：${error.message}`, "error");
+        }
+    });
+})();
+</script>
+{% endblock %}

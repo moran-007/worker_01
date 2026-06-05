@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}生成课次 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">批量排课</p>
+        <h1>{{ class_row.class_name }}</h1>
+    </div>
+    <a class="button" href="{{ url_for('classes') }}">返回班级</a>
+</header>
+
+<section class="panel">
+    <form method="post" class="form-grid">
+        <div class="field"><label>开始日期</label><input name="start_date" type="date" value="{{ class_row.start_date or today }}" required></div>
+        <div class="field"><label>结束日期</label><input name="end_date" type="date" value="{{ class_row.end_date or today }}" required></div>
+        <div class="field">
+            <label>星期</label>
+            <select name="weekday" required>
+                {% for value, label in weekday_choices %}
+                <option value="{{ value }}" {{ 'selected' if class_row.default_weekday == value }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field"><label>开始时间</label><input name="start_time" type="time" value="{{ class_row.default_start_time or '' }}" required></div>
+        <div class="field"><label>结束时间</label><input name="end_time" type="time" value="{{ class_row.default_end_time or '' }}" required></div>
+        <div class="field">
+            <label>老师</label>
+            <select name="teacher_id">
+                <option value="">未指定</option>
+                {% for teacher in teachers %}
+                <option value="{{ teacher.id }}" {{ 'selected' if class_row.teacher_id == teacher.id }}>{{ teacher.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>课程类型</label>
+            <select name="lesson_type_id" id="lesson-type-select">
+                {% for type in lesson_types %}
+                <option value="{{ type.id }}" {{ 'selected' if type.type_name == '常规课' }}>{{ type.type_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field"><label>课时数量</label><input name="lesson_hours" id="lesson-hours-input" type="number" step="0.5" value="1"></div>
+        <div class="field"><label>教室</label><input name="classroom"></div>
+        <div class="field full">
+            <label>预设课程</label>
+            <select name="course_preset_id" id="course-preset-select">
+                <option value="">不选择预设课程，手动填写课程主题</option>
+                {% for preset in course_presets %}
+                <option
+                    value="{{ preset.id }}"
+                    data-topic="{{ preset.course_name }}"
+                    data-type-id="{{ preset.lesson_type_id or '' }}"
+                    data-hours="{{ preset.default_hours }}"
+                >{{ preset.category }} / {{ preset.stage }} / 第{{ preset.lesson_no }}节 / {{ preset.course_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field full"><label>课程主题</label><input name="lesson_topic" id="lesson-topic-input"></div>
+        <div class="field full"><label>备注</label><textarea name="remark"></textarea></div>
+        <div class="field full"><button class="primary" type="submit">批量生成课次</button></div>
+    </form>
+</section>
+
+<script>
+    const presetSelect = document.getElementById("course-preset-select");
+    const topicInput = document.getElementById("lesson-topic-input");
+    const typeSelect = document.getElementById("lesson-type-select");
+    const hoursInput = document.getElementById("lesson-hours-input");
+
+    if (presetSelect) {
+        presetSelect.addEventListener("change", () => {
+            const option = presetSelect.selectedOptions[0];
+            if (!option || !option.value) return;
+            topicInput.value = option.dataset.topic || "";
+            if (option.dataset.typeId) typeSelect.value = option.dataset.typeId;
+            if (option.dataset.hours) hoursInput.value = option.dataset.hours;
+        });
+    }
+</script>
+{% endblock %}

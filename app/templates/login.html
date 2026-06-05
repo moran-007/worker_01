@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>登录 - 课时签到系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+    <main class="login-shell">
+        <section class="login-panel">
+            <div>
+                <p class="eyebrow">校区内部系统</p>
+                <h1>课时签到管理</h1>
+                <p class="subtle">默认管理员账号为 admin，初始密码为 admin123。首次进入后建议在“账号权限”中修改密码。</p>
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-wrap">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            <form method="post" class="login-form">
+                <div class="field"><label>账号</label><input name="username" autofocus required></div>
+                <div class="field"><label>密码</label><input name="password" type="password" required></div>
+                <button class="primary" type="submit">登录系统</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

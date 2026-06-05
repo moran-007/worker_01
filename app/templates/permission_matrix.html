@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}权限矩阵 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">系统管理</p>
+        <h1>身份与权限矩阵</h1>
+        <p>超级管理员可以新增身份，并手动控制每个身份拥有的权限。</p>
+    </div>
+</header>
+
+<section class="panel">
+    <div class="section-title"><h2>新增身份</h2></div>
+    <form method="post" action="{{ url_for('create_role') }}" class="form-grid compact">
+        <div class="field">
+            <label>身份标识</label>
+            <input name="role_code" placeholder="例如 assistant_teacher" required>
+        </div>
+        <div class="field">
+            <label>身份名称</label>
+            <input name="label" placeholder="例如 助教" required>
+        </div>
+        <div class="field">
+            <label>等级</label>
+            <input name="level" type="number" min="1" max="99" value="25">
+        </div>
+        <div class="field full">
+            <label>说明</label>
+            <input name="note" placeholder="描述这个身份的使用范围">
+        </div>
+        <div class="field full"><button class="primary" type="submit">创建身份</button></div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="section-title"><h2>身份信息</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>身份</th>
+                    <th>名称</th>
+                    <th>等级</th>
+                    <th>状态</th>
+                    <th>说明</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role in roles %}
+                <tr>
+                    <form method="post" action="{{ url_for('update_role', role_code=role.value) }}" id="role-meta-{{ role.value }}"></form>
+                    <td><code>{{ role.value }}</code>{{ ' · 系统' if role.is_system else '' }}</td>
+                    <td><input form="role-meta-{{ role.value }}" name="label" value="{{ role.label }}" required></td>
+                    <td><input form="role-meta-{{ role.value }}" name="level" type="number" min="1" max="100" value="{{ role.level }}"></td>
+                    <td>
+                        <select form="role-meta-{{ role.value }}" name="status" {{ 'disabled' if role.is_system }}>
+                            <option value="active" {{ 'selected' if role.status == 'active' }}>启用</option>
+                            <option value="inactive" {{ 'selected' if role.status == 'inactive' }}>停用</option>
+                        </select>
+                    </td>
+                    <td><input form="role-meta-{{ role.value }}" name="note" value="{{ role.note }}"></td>
+                    <td><button form="role-meta-{{ role.value }}" type="submit">保存</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel permission-panel">
+    <div class="section-title">
+        <h2>权限矩阵</h2>
+        <span class="muted">每列代表一个身份；勾选后保存对应身份。</span>
+    </div>
+
+    {% for role in roles %}
+    <form method="post" action="{{ url_for('update_role', role_code=role.value) }}" id="role-permissions-{{ role.value }}">
+        <input type="hidden" name="action" value="save_permissions">
+    </form>
+    {% endfor %}
+
+    <div class="permission-matrix-wrap">
+        <table class="permission-matrix">
+            <thead>
+                <tr>
+                    <th class="permission-name">权限</th>
+                    {% for role in roles %}
+                    <th>
+                        <div class="role-column-title">{{ role.label }}</div>
+                        <code>{{ role.value }}</code>
+                        <button form="role-permissions-{{ role.value }}" type="submit" {{ 'disabled' if role.value == 'super_admin' }}>保存</button>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                <tr class="permission-category"><td colspan="{{ roles|length + 1 }}">{{ category }}</td></tr>
+                {% for permission in grouped_permissions[category] %}
+                <tr>
+                    <td class="permission-name">
+                        <strong>{{ permission.label }}</strong>
+                        <span>{{ permission.key }}</span>
+                        {% if permission.description %}<small>{{ permission.description }}</small>{% endif %}
+                    </td>
+                    {% for role in roles %}
+                    {% set enabled = permission.key in role.permissions %}
+                    <td>
+                        <input
+                            type="checkbox"
+                            name="permissions"
+                            value="{{ permission.key }}"
+                            form="role-permissions-{{ role.value }}"
+                            {{ 'checked' if enabled }}
+                            {{ 'disabled' if role.value == 'super_admin' }}>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

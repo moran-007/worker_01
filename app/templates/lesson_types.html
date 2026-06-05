@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}课程类型 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">课时规则</p>
+        <h1>课程类型管理</h1>
+    </div>
+</header>
+
+<section class="panel">
+    <div class="section-title"><h2>添加课程类型</h2></div>
+    <form method="post" class="form-grid compact">
+        <div class="field"><label>类型名称</label><input name="type_name" required></div>
+        <div class="field"><label>默认课时</label><input name="default_hours" type="number" step="0.5" value="1"></div>
+        <div class="field"><label>计入统计</label><label class="check"><input name="count_in_statistics" type="checkbox" checked> 是</label></div>
+        <div class="field full"><label>备注</label><textarea name="remark"></textarea></div>
+        <div class="field full"><button class="primary" type="submit">保存类型</button></div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="section-title"><h2>类型列表</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>默认课时</th>
+                    <th>计入统计</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for type in lesson_types %}
+                <tr>
+                    <td>{{ type.type_name }}</td>
+                    <td>{{ type.default_hours }}</td>
+                    <td><span class="tag {{ 'success' if type.count_in_statistics else 'warning' }}">{{ '是' if type.count_in_statistics else '否' }}</span></td>
+                    <td>{{ type.remark or '-' }}</td>
+                    <td><a class="link-button" href="{{ url_for('edit_lesson_type', type_id=type.id) }}">编辑</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

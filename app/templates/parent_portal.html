@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}家长端 - 课时签到系统{% endblock %}
+
+{% block content %}
+{% set student = portal.student %}
+{% set summary = portal.summary %}
+
+<header class="student-hero parent-hero">
+    <div>
+        <p class="eyebrow">{{ '教师预览' if preview_mode else '家长端' }}</p>
+        <h1>{{ student.student_name if student and student.student_name else current_user.display_name }} 的学习概览</h1>
+        <p>课时、排课、班级和学习记录仅展示当前账号关联孩子的数据。</p>
+    </div>
+    <div class="student-hero-badge">
+        <span>剩余课时</span>
+        <strong>{{ summary.remaining_hours }}</strong>
+    </div>
+</header>
+
+{% if not student %}
+<section class="panel">
+    <div class="section-title"><h2>账号未关联学生档案</h2></div>
+    <p class="muted">请联系管理员在账号权限中关联学生档案。</p>
+</section>
+{% else %}
+<section class="student-metric-grid">
+    {% for item in portal.report_cards %}
+    <article class="student-metric-card {{ 'primary' if loop.first }}">
+        <span>{{ item.title }}</span>
+        <strong>{{ item.value }}</strong>
+        <small>{{ item.hint }}</small>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="student-grid">
+    <article class="panel student-panel">
+        <div class="section-title">
+            <h2>孩子班级</h2>
+        </div>
+        <div class="student-card-list">
+            {% for class_row in portal.classes %}
+            <div class="student-list-card">
+                <div>
+                    <strong>{{ class_row.class_name }}</strong>
+                    <span>{{ class_row.course_name or '课程' }} · {{ class_row.teacher_name or '未分配老师' }}</span>
+                </div>
+                <small>{{ class_row.class_type or '班课' }}</small>
+            </div>
+            {% else %}
+            <p class="empty-inline">暂无班级。</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel student-panel">
+        <div class="section-title">
+            <h2>近期排课</h2>
+        </div>
+        <div class="student-card-list">
+            {% for lesson in portal.upcoming_lessons %}
+            <div class="student-list-card accent">
+                <div>
+                    <strong>{{ lesson.preset_course_name or lesson.lesson_topic or lesson.course_name or '课程安排' }}</strong>
+                    <span>{{ lesson.lesson_date }} {{ lesson.start_time or '' }}-{{ lesson.end_time or '' }}</span>
+                </div>
+                <small>{{ lesson.classroom or lesson.class_name }}</small>
+            </div>
+            {% else %}
+            <p class="empty-inline">暂无近期课程。</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel student-panel">
+        <div class="section-title">
+            <h2>学习记录</h2>
+        </div>
+        <div class="student-card-list">
+            {% for record in portal.recent_attendance %}
+            <div class="student-list-card">
+                <div>
+                    <strong>{{ record.preset_course_name or record.lesson_topic or record.class_name }}</strong>
+                    <span>{{ record.lesson_date }} · {{ record.status }} · 扣 {{ record.deduct_hours }} 课时</span>
+                </div>
+                <small>{{ record.teacher_name or '-' }}</small>
+            </div>
+            {% else %}
+            <p class="empty-inline">暂无学习记录。</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel student-panel">
+        <div class="section-title">
+            <h2>学习报告</h2>
+        </div>
+        <div class="student-card-list">
+            {% for note in portal.guardian_notes %}
+            <div class="student-list-card">
+                <div>
+                    <strong>只读报告</strong>
+                    <span>{{ note }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endif %}
+{% endblock %}

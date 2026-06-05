@@ -1,0 +1,37 @@
+# Runtime data and generated files
+app/data/
+app/backups/
+app/exports/
+app/*.log
+app/server.*.out.log
+app/server.*.err.log
+app/frontend/*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Frontend dependencies and build output
+app/frontend/node_modules/
+app/frontend/dist/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Local cleanup/archive folders
+_archive_removed_unrelated_*/
+references/source_scans/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

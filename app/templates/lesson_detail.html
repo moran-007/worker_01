@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}课程详情 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">{{ lesson.lesson_date }} {{ lesson.start_time or '' }}-{{ lesson.end_time or '' }}</p>
+        <h1>{{ lesson.class_name }} 课程详情</h1>
+        <p class="subtle">{{ lesson.type_name or '未设置类型' }} / {{ lesson.teacher_name or '未指定教师' }} / {{ lesson.lesson_topic or '未设置主题' }}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{{ url_for('lessons', date=lesson.lesson_date) }}">返回课次</a>
+        <a class="button" href="{{ url_for('attendance', lesson_id=lesson.id) }}">进入签到</a>
+    </div>
+</header>
+
+<section class="panel">
+    <div class="section-title">
+        <h2>每节课详细课程记录</h2>
+        {% if detail.updated_at %}
+        <span class="subtle">最后更新：{{ detail.updated_at }} / {{ detail.updated_by or '未记录' }}</span>
+        {% endif %}
+    </div>
+    <form method="post" class="form-grid">
+        <div class="field full">
+            <label>本节课内容</label>
+            <textarea name="teaching_content" rows="5" placeholder="记录本节课讲解的知识点、项目步骤、练习内容等">{{ detail.teaching_content }}</textarea>
+        </div>
+        <div class="field full">
+            <label>教学目标</label>
+            <textarea name="learning_goal" rows="3" placeholder="本节课希望学生掌握的目标">{{ detail.learning_goal }}</textarea>
+        </div>
+        <div class="field full">
+            <label>课堂表现</label>
+            <textarea name="class_performance" rows="4" placeholder="记录课堂整体表现、参与度、需要关注的问题">{{ detail.class_performance }}</textarea>
+        </div>
+        <div class="field full">
+            <label>课后作业</label>
+            <textarea name="homework" rows="4" placeholder="布置给学生的作业或复习任务">{{ detail.homework }}</textarea>
+        </div>
+        <div class="field full">
+            <label>下节安排</label>
+            <textarea name="next_plan" rows="4" placeholder="下节课主题、补充练习或衔接计划">{{ detail.next_plan }}</textarea>
+        </div>
+        <div class="field full">
+            <label>资料与备注</label>
+            <textarea name="materials" rows="3" placeholder="课件、素材、教具、链接或其他补充说明">{{ detail.materials }}</textarea>
+        </div>
+        <div class="field full">
+            <button class="primary" type="submit">保存课程详情</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="section-title">
+        <h2>Scratch 课堂闭环</h2>
+        <span class="muted">模板绑定、学生作品、提交与点评</span>
+    </div>
+    <div class="student-grid">
+        <article class="student-panel">
+            <h3>已绑定模板</h3>
+            <div class="student-card-list">
+                {% for template in scratch_templates %}
+                <div class="student-list-card">
+                    <div>
+                        <strong>{{ template.title }}</strong>
+                        <span>{{ template.description or template.asset_filename or '模板作品' }}</span>
+                    </div>
+                    <a class="link-button" href="{{ url_for('scratch_editor', template_id=template.template_id) }}">预览</a>
+                </div>
+                {% else %}
+                <p class="empty-inline">暂未绑定 Scratch 模板。可通过 API `/api/lessons/{{ lesson.id }}/scratch/templates` 绑定。</p>
+                {% endfor %}
+            </div>
+        </article>
+        <article class="student-panel">
+            <h3>学生作品</h3>
+            <div class="student-card-list">
+                {% for work in scratch_works %}
+                <div class="student-list-card">
+                    <div>
+                        <strong>{{ work.student_name }} · {{ work.title }}</strong>
+                        <span>{{ work.status }}{% if work.score is not none %} · {{ work.score }} 分{% endif %}{% if work.review_comment %} · {{ work.review_comment }}{% endif %}</span>
+                    </div>
+                    <a class="link-button" href="{{ url_for('scratch_editor', work_id=work.id) }}">查看</a>
+                </div>
+                {% else %}
+                <p class="empty-inline">暂无学生作品。</p>
+                {% endfor %}
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock %}

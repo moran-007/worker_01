@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}数据备份 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">本地 SQLite 数据库</p>
+        <h1>数据备份</h1>
+    </div>
+    <form method="post" action="{{ url_for('create_backup') }}">
+        <button class="primary" type="submit">立即备份</button>
+    </form>
+</header>
+
+<section class="panel">
+    <div class="section-title"><h2>备份文件</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>文件名</th><th>大小</th><th>更新时间</th><th>操作</th></tr></thead>
+            <tbody>
+                {% for file in backup_files %}
+                <tr>
+                    <td>{{ file.name }}</td>
+                    <td>{{ file.size_kb }} KB</td>
+                    <td>{{ file.modified }}</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="link-button" href="{{ url_for('download_backup', filename=file.name) }}">下载</a>
+                            {% if can('backups.restore') %}
+                            <form class="inline-form" method="post" action="{{ url_for('restore_backup', filename=file.name) }}" onsubmit="return confirm('确认恢复该备份吗？当前数据库会先自动保存一份恢复前备份。');">
+                                <button class="danger" type="submit">恢复</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">暂无备份文件。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

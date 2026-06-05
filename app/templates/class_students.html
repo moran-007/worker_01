@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}班级学生 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">班级学生</p>
+        <h1>{{ class_row.class_name }}</h1>
+    </div>
+    <div class="actions">
+        <a class="button" href="{{ url_for('classes') }}">返回班级</a>
+        <a class="button primary" href="{{ url_for('generate_lessons', class_id=class_row.id) }}">生成课次</a>
+    </div>
+</header>
+
+<section class="panel">
+    <div class="section-title"><h2>添加学生到班级</h2></div>
+    <form method="post" class="form-grid compact">
+        <div class="field">
+            <label>学生</label>
+            <select name="student_id" required>
+                <option value="">请选择</option>
+                {% for student in available %}
+                <option value="{{ student.id }}">{{ student.name }} {{ student.parent_phone or '' }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field"><label>加入日期</label><input name="join_date" type="date" value="{{ today }}"></div>
+        <div class="field"><label>&nbsp;</label><button class="primary" type="submit">加入班级</button></div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="section-title"><h2>班级学生名单</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>电话</th>
+                    <th>家长电话</th>
+                    <th>学校</th>
+                    <th>加入日期</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                <tr>
+                    <td>{{ member.name }}</td>
+                    <td>{{ member.phone or '-' }}</td>
+                    <td>{{ member.parent_phone or '-' }}</td>
+                    <td>{{ member.school or '-' }}</td>
+                    <td>{{ member.join_date or '-' }}</td>
+                    <td>
+                        <form class="inline-form" method="post" action="{{ url_for('remove_class_student', class_id=class_row.id, student_id=member.student_id) }}">
+                            <button class="danger" type="submit">移出</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty">班级暂无学生。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

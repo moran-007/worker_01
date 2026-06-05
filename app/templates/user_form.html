@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}编辑账号 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">账号权限</p>
+        <h1>编辑账号</h1>
+    </div>
+    <a class="button" href="{{ url_for('users') }}">返回账号</a>
+</header>
+
+<section class="panel">
+    <form method="post" class="form-grid">
+        <div class="field"><label>登录账号</label><input value="{{ user.username }}" disabled></div>
+        <div class="field"><label>显示名称</label><input name="display_name" required value="{{ user.display_name }}"></div>
+        <div class="field"><label>新密码</label><input name="password" type="password" placeholder="不修改则留空"></div>
+        <div class="field">
+            <label>角色</label>
+            <select name="role">
+                {% for option in role_options %}
+                <option value="{{ option.value }}" {{ 'selected' if normalize_role(user.role) == option.value }}>{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>状态</label>
+            <select name="status">
+                <option value="active" {{ 'selected' if user.status == 'active' }}>启用</option>
+                <option value="inactive" {{ 'selected' if user.status == 'inactive' }}>停用</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>关联教师</label>
+            <select name="teacher_id">
+                <option value="">不关联</option>
+                {% for teacher in teachers %}
+                <option value="{{ teacher.id }}" {{ 'selected' if user.teacher_id == teacher.id }}>{{ teacher.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>关联学生</label>
+            <select name="student_id">
+                <option value="">不关联</option>
+                {% for student in students %}
+                <option value="{{ student.id }}" {{ 'selected' if user.student_id == student.id }}>{{ student.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field full"><label>备注</label><textarea name="remark">{{ user.remark or '' }}</textarea></div>
+        <div class="field full"><button class="primary" type="submit">保存账号</button></div>
+    </form>
+</section>
+{% endblock %}

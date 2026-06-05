@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}学生记录 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">学生记录</p>
+        <h1>{{ student.name }}</h1>
+    </div>
+    <a class="button" href="{{ url_for('students') }}">返回学生</a>
+</header>
+
+<section class="metric-grid">
+    <div class="metric"><span>总课时</span><strong>{{ summary.total_hours|round(1) }}</strong></div>
+    <div class="metric"><span>已消耗</span><strong>{{ summary.consumed|round(1) }}</strong></div>
+    <div class="metric"><span>剩余课时</span><strong>{{ summary.remaining|round(1) }}</strong></div>
+    <div class="metric"><span>最近上课</span><strong>{{ summary.last_lesson }}</strong></div>
+</section>
+
+<section class="panel">
+    <div class="section-title"><h2>签到历史</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>班级</th>
+                    <th>课程类型</th>
+                    <th>主题</th>
+                    <th>状态</th>
+                    <th>扣课时</th>
+                    <th>备注</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.lesson_date }} {{ row.start_time or '' }}</td>
+                    <td>{{ row.class_name }}</td>
+                    <td>{{ row.type_name or '-' }}</td>
+                    <td>{{ row.lesson_topic or '-' }}</td>
+                    <td><span class="tag">{{ row.status }}</span></td>
+                    <td>{{ row.deduct_hours }}</td>
+                    <td>{{ row.remark or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty">暂无签到记录。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

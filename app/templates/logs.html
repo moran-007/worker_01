@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}操作日志 - 课时签到系统{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">系统审计</p>
+        <h1>操作日志</h1>
+    </div>
+    <a class="button secondary" href="{{ url_for('export_logs', q=filters.q, start_date=filters.start_date, end_date=filters.end_date) }}">导出 Excel</a>
+</header>
+
+<section class="panel">
+    <form class="filter-grid" method="get">
+        <div class="field"><label>关键词</label><input name="q" value="{{ filters.q }}" placeholder="账号、动作、详情"></div>
+        <div class="field"><label>开始日期</label><input name="start_date" type="date" value="{{ filters.start_date }}"></div>
+        <div class="field"><label>结束日期</label><input name="end_date" type="date" value="{{ filters.end_date }}"></div>
+        <div class="field"><label>&nbsp;</label><button type="submit">筛选日志</button></div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>账号</th>
+                    <th>角色</th>
+                    <th>动作</th>
+                    <th>对象</th>
+                    <th>详情</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at }}</td>
+                    <td>{{ log.username or '-' }}</td>
+                    <td>{{ role_labels.get(normalize_role(log.role), log.role) }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.target_type or '-' }} {{ log.target_id or '' }}</td>
+                    <td>{{ log.detail or '-' }}</td>
+                    <td>{{ log.ip_address or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty">暂无日志。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
