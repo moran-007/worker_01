@@ -303,6 +303,115 @@ body {
   box-shadow: 0 12px 34px rgba(15, 23, 42, 0.045);
 }
 
+.portal-page {
+  min-height: 100vh;
+  padding: 28px;
+  background: #f5f7fb;
+}
+
+.portal-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+}
+
+.portal-hero span {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.portal-hero h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  letter-spacing: 0;
+}
+
+.portal-hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.portal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.portal-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.portal-metric {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.portal-metric span,
+.portal-metric small {
+  color: var(--muted);
+}
+
+.portal-metric strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.portal-card.el-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.portal-wide {
+  grid-column: 1 / -1;
+}
+
+.portal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.portal-list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e8eef6;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.portal-list-item div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.portal-list-item span,
+.portal-list-item small {
+  color: var(--muted);
+}
+
 .data-card .el-card__header,
 .section-card .el-card__header {
   background: #fbfdff;
@@ -656,6 +765,7 @@ body {
   .chart-grid,
   .scratch-workspace,
   .resource-workspace,
+  .portal-grid,
   .role-create-form,
   .login-page {
     grid-template-columns: 1fr;
@@ -667,5 +777,14 @@ body {
 
   .login-copy h1 {
     font-size: 34px;
+  }
+
+  .portal-metrics {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .portal-hero {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

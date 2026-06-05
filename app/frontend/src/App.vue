@@ -1,5 +1,5 @@
 <template>
-  <router-view v-if="$route.meta.public" />
+  <router-view v-if="$route.meta.public || $route.meta.standalone" />
   <AppShell v-else />
 </template>
 

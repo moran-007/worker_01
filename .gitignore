@@ -6,6 +6,7 @@ app/*.log
 app/server.*.out.log
 app/server.*.err.log
 app/frontend/*.log
+runtime_logs/
 *.db
 *.sqlite
 *.sqlite3

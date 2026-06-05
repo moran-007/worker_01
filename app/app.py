@@ -101,6 +101,8 @@ def create_app() -> Flask:
     vue_exact_routes = {
         "/",
         "/login",
+        "/student",
+        "/parent",
         "/students",
         "/teachers",
         "/classes",
@@ -156,11 +158,21 @@ def create_app() -> Flask:
         if request.method != "GET":
             return False
         path = request.path.rstrip("/") or "/"
-        if path.startswith(("/api/", "/static/", "/assets/", "/student", "/parent", "/scratch/")):
+        if path.startswith(("/api/", "/static/", "/assets/")):
+            return False
+        if path == "/scratch/editor":
+            return False
+        if path.startswith(("/exports/", "/backups/")) and path.endswith("/download"):
             return False
         if path in vue_exact_routes:
             return True
-        return bool(vue_detail_route_pattern.match(path))
+        return True
+
+    def is_classic_frontend_write_request() -> bool:
+        if request.method in SAFE_METHODS:
+            return False
+        path = request.path.rstrip("/") or "/"
+        return not path.startswith("/api/") and path != "/scratch/editor"
 
     @app.get("/assets/<path:filename>")
     def frontend_assets(filename: str):
@@ -171,6 +183,9 @@ def create_app() -> Flask:
 
     @app.before_request
     def load_current_user():
+        if is_classic_frontend_write_request():
+            return jsonify({"ok": False, "message": "经典 Flask 页面入口已禁用，请使用 Vue 前端。"}), 410
+
         user_id = session.get("user_id")
         g.current_user = None
         if user_id:
@@ -4623,6 +4638,31 @@ def validate_upload_filename(filename: str) -> str:
     return safe_name
 
 
+def validate_scratch_project_bytes(filename: str, content: bytes):
+    suffix = Path(filename or "").suffix.lower()
+    if suffix not in {".sb2", ".sb3"}:
+        return
+    try:
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            if "project.json" not in archive.namelist():
+                raise ValueError("Scratch 模板缺少 project.json。")
+            json.loads(archive.read("project.json").decode("utf-8"))
+    except ValueError:
+        raise
+    except (zipfile.BadZipFile, json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError("Scratch 模板文件无法解析，请上传有效的 .sb3/.sb2 文件。") from error
+
+
+def validate_scratch_project_upload(upload):
+    suffix = Path(upload.filename or "").suffix.lower()
+    if suffix not in {".sb2", ".sb3"}:
+        return
+    position = upload.stream.tell()
+    content = upload.read()
+    upload.stream.seek(position)
+    validate_scratch_project_bytes(upload.filename, content)
+
+
 def save_uploaded_asset(upload, usage_scope: str = "courseware", asset_type: str = "", metadata: dict | None = None) -> dict:
     safe_name = validate_upload_filename(upload.filename)
     suffix = Path(safe_name).suffix.lower()
@@ -5006,6 +5046,7 @@ def create_scratch_template(req) -> dict:
     file_asset = None
     thumb_asset = None
     if req.files.get("file"):
+        validate_scratch_project_upload(req.files["file"])
         file_asset = save_uploaded_asset(
             req.files["file"],
             usage_scope="scratch",
@@ -5446,6 +5487,7 @@ def save_scratch_work_progress(work: dict, req) -> dict:
     asset_id = parse_int(data.get("asset_id")) or work.get("asset_id")
     thumbnail_asset_id = parse_int(data.get("thumbnail_asset_id")) or work.get("thumbnail_asset_id")
     if req.files.get("file"):
+        validate_scratch_project_upload(req.files["file"])
         asset = save_uploaded_asset(
             req.files["file"],
             usage_scope="scratch",
@@ -5486,6 +5528,7 @@ def save_scratch_work_from_editor(work: dict, data: dict) -> dict:
     project_base64 = data.get("project_base64") or data.get("sb3_base64") or data.get("project")
     project_bytes = decode_base64_payload(project_base64, "Scratch 作品")
     title = (data.get("title") or work["title"] or f"scratch-work-{work['id']}").strip()
+    validate_scratch_project_bytes(f"work-{work['id']}.sb3", project_bytes)
     asset = save_binary_asset(
         f"work-{work['id']}.sb3",
         project_bytes,

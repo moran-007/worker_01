@@ -50,8 +50,6 @@ const rules = {
   username: [requiredRule('请输入账号')],
   password: [requiredRule('请输入密码')]
 }
-const backendOrigin = import.meta.env.VITE_BACKEND_ORIGIN || 'http://127.0.0.1:8000'
-
 function isStudentUser(user) {
   return user?.role === 'student' || user?.permissions?.includes('student_portal.view')
 }
@@ -68,11 +66,11 @@ async function handleLogin() {
     const data = await api.login(form)
     ElMessage.success('登录成功')
     if (isStudentUser(data.user)) {
-      window.location.href = `${backendOrigin}/student`
+      router.replace('/student')
       return
     }
     if (isParentUser(data.user)) {
-      window.location.href = `${backendOrigin}/parent`
+      router.replace('/parent')
       return
     }
     router.replace('/')

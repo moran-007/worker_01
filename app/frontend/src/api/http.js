@@ -38,6 +38,12 @@ export const api = {
   me() {
     return request('/api/me')
   },
+  studentMe() {
+    return request('/api/student/me')
+  },
+  parentMe() {
+    return request('/api/parent/me')
+  },
   permissions() {
     return request('/api/permissions')
   },
@@ -166,6 +172,9 @@ export const api = {
   },
   createLessonScratchAssignment(lessonId, formData) {
     return request(`/api/lessons/${lessonId}/scratch/assignments`, { method: 'POST', body: formData })
+  },
+  createScratchWork(lessonId, templateId) {
+    return request(`/api/lessons/${lessonId}/scratch/templates/${templateId}/work`, { method: 'POST' })
   },
   updateLessonScratchAssignment(lessonId, templateId, payload) {
     return request(`/api/lessons/${lessonId}/scratch/templates/${templateId}/assignment`, {

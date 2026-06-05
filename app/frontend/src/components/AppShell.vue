@@ -68,7 +68,6 @@
         </div>
         <div class="header-actions">
           <el-tag v-if="user" effect="light" round>{{ user.role_label }}</el-tag>
-          <el-button plain @click="openClassic">备用入口</el-button>
           <el-button plain @click="openPasswordDialog">修改密码</el-button>
           <el-button type="primary" plain @click="handleLogout">退出</el-button>
         </div>
@@ -178,10 +177,6 @@ async function handleLogout() {
   await api.logout()
   ElMessage.success('已退出登录')
   router.replace('/login')
-}
-
-function openClassic() {
-  window.open('http://127.0.0.1:8000', '_blank')
 }
 
 function defaultPasswordForm() {

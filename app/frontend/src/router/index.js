@@ -17,11 +17,15 @@ const StatisticsView = () => import('../views/StatisticsView.vue')
 const UsersView = () => import('../views/UsersView.vue')
 const LogsView = () => import('../views/LogsView.vue')
 const DatabaseView = () => import('../views/DatabaseView.vue')
+const StudentPortalView = () => import('../views/StudentPortalView.vue')
+const ParentPortalView = () => import('../views/ParentPortalView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
+    { path: '/student', name: 'studentPortal', component: StudentPortalView, meta: { standalone: true, role: 'student' } },
+    { path: '/parent', name: 'parentPortal', component: ParentPortalView, meta: { standalone: true, role: 'parent' } },
     { path: '/', name: 'dashboard', component: DashboardView, meta: { permission: 'dashboard.view' } },
     { path: '/students', name: 'students', component: StudentsView, meta: { permission: 'students.view' } },
     { path: '/teachers', name: 'teachers', component: TeachersView, meta: { permission: 'teachers.view' } },
@@ -35,19 +39,19 @@ const router = createRouter({
     { path: '/statistics', name: 'statistics', component: StatisticsView, meta: { permission: 'statistics.view' } },
     { path: '/users', name: 'users', component: UsersView, meta: { permission: 'users.manage' } },
     { path: '/logs', name: 'logs', component: LogsView, meta: { permission: 'logs.view' } },
-    { path: '/database', name: 'database', component: DatabaseView, meta: { permission: 'database.view' } }
+    { path: '/database', name: 'database', component: DatabaseView, meta: { permission: 'database.view' } },
+    { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
 
 let currentUser = null
-const backendOrigin = import.meta.env.VITE_BACKEND_ORIGIN || 'http://127.0.0.1:8000'
 
 function isStudentUser(user) {
-  return user?.role === 'student' || user?.permissions?.includes('student_portal.view')
+  return user?.role === 'student'
 }
 
 function isParentUser(user) {
-  return user?.role === 'parent' || user?.permissions?.includes('parent_portal.view')
+  return user?.role === 'parent'
 }
 
 router.beforeEach(async (to) => {
@@ -58,14 +62,9 @@ router.beforeEach(async (to) => {
   } catch {
     return { path: '/login' }
   }
-  if (isStudentUser(currentUser)) {
-    window.location.href = `${backendOrigin}/student`
-    return false
-  }
-  if (isParentUser(currentUser)) {
-    window.location.href = `${backendOrigin}/parent`
-    return false
-  }
+  if (isStudentUser(currentUser) && to.path !== '/student') return { path: '/student' }
+  if (isParentUser(currentUser) && to.path !== '/parent') return { path: '/parent' }
+  if (to.meta.role && currentUser?.role !== to.meta.role) return { path: '/' }
   if (to.meta.permission && !hasPermission(currentUser, to.meta.permission)) return { path: '/' }
   return true
 })
