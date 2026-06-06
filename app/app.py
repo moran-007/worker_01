@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import (
     Flask,
@@ -598,19 +599,37 @@ def create_app() -> Flask:
         if work is not None:
             ensure_scratch_work_access(work, write=False)
         template = get_scratch_template(template_id) if template_id else None
+        if template_id and template is None:
+            abort(404)
+        if template is not None:
+            ensure_scratch_template_preview_access(template["id"])
         project_url = ""
         if work and work.get("asset_url"):
-            project_url = work["asset_url"]
+            project_url = absolute_app_url(work["asset_url"])
         elif template and template.get("asset_url"):
-            project_url = template["asset_url"]
+            project_url = absolute_app_url(template["asset_url"])
+        title = work["title"] if work else (template["title"] if template else "Scratch 编辑器")
+        editor_context = {
+            "workId": str(work_id or ""),
+            "templateId": str(template_id or ""),
+            "title": title,
+            "projectUrl": project_url,
+            "editorUrl": scratch_editor_config()["editor_url"],
+            "editorOrigin": origin_from_url(scratch_editor_config()["editor_url"]),
+            "saveEndpoint": url_for("api_editor_save_scratch_work", work_id=work["id"]) if work else "",
+            "fallbackSaveEndpoint": url_for("api_save_scratch_work", work_id=work["id"]) if work else "",
+            "submitEndpoint": url_for("api_submit_scratch_work", work_id=work["id"]) if work else "",
+        }
         return render_template(
             "scratch_editor.html",
             config=scratch_editor_config(),
             work=work,
             template=template,
+            title=title,
             work_id=str(work_id or ""),
             template_id=str(template_id or ""),
             project_url=project_url,
+            editor_context=editor_context,
         )
 
     @app.get("/api/scratch/templates")
@@ -4989,6 +5008,26 @@ def scratch_editor_config() -> dict:
     }
 
 
+def absolute_app_url(path: str | None) -> str:
+    if not path:
+        return ""
+    value = str(path)
+    if value.startswith(("http://", "https://")):
+        return value
+    if not value.startswith("/"):
+        value = "/" + value
+    return request.host_url.rstrip("/") + value
+
+
+def origin_from_url(url: str | None) -> str:
+    if not url:
+        return "*"
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return "*"
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 def query_scratch_templates(filters: dict | None = None):
     filters = filters or {}
     conditions = []
@@ -5029,6 +5068,34 @@ def get_scratch_template(template_id: int) -> dict | None:
         (template_id,),
     )
     return dict(row) if row else None
+
+
+def ensure_scratch_template_preview_access(template_id: int):
+    user = g.get("current_user")
+    if not user:
+        abort(403)
+    role = normalize_role(user["role"])
+    if role in {"student", "parent"}:
+        student_id = user.get("student_id")
+        if not student_id:
+            abort(403)
+        row = fetch_one(
+            """
+            SELECT 1
+            FROM lesson_scratch_templates lst
+            JOIN lessons l ON l.id = lst.lesson_id
+            JOIN class_students cs ON cs.class_id = l.class_id
+            WHERE lst.template_id = ?
+              AND lst.status = 'active'
+              AND l.status != 'cancelled'
+              AND cs.student_id = ?
+              AND cs.status = 'active'
+            LIMIT 1
+            """,
+            (template_id, student_id),
+        )
+        if row is None:
+            abort(403)
 
 
 def ensure_scratch_template_update_access(template: dict):

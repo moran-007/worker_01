@@ -142,9 +142,10 @@
             <el-table-column label="作品" width="96">
               <template #default="{ row }">{{ Number(row.submitted_count || 0) }}/{{ Number(row.work_count || 0) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="220">
+            <el-table-column label="操作" width="280">
               <template #default="{ row }">
                 <el-button size="small" @click="editTemplate(row)">编辑</el-button>
+                <el-button size="small" type="primary" @click="openTemplateEditor(row)">进入编程</el-button>
                 <el-button v-if="row.asset_url" size="small" @click="openBackend(row.asset_url)">打开</el-button>
                 <el-button size="small" type="danger" :disabled="!canManageScratch" @click="unbindTemplate(row)">移除</el-button>
               </template>
@@ -441,6 +442,10 @@ function openBackend(path) {
   if (!path) return
   const url = path.startsWith('http') ? path : `${backendOrigin}${path}`
   window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function openTemplateEditor(row) {
+  openBackend(`/scratch/editor?template_id=${row.template_id}`)
 }
 
 function openEditor(work) {

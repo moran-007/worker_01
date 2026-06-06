@@ -307,6 +307,14 @@ def run_validation() -> tuple[Validation, int]:
         v.require("Teacher uploads and binds Scratch template", template_response.status_code == 200 and template_id, f"template_id={template_id}")
         v.artifacts["template_id"] = template_id
 
+        teacher_editor = teacher.get(f"/scratch/editor?template_id={template_id}")
+        teacher_editor_text = teacher_editor.get_data(as_text=True)
+        v.require(
+            "Teacher can open Scratch graphical template editor",
+            teacher_editor.status_code == 200 and "SCRATCH_OJ_LOAD_SB3" in teacher_editor_text,
+            f"status={teacher_editor.status_code}",
+        )
+
         detail_after_assets = teacher.get(f"/api/lessons/{lesson_id}/detail")
         detail_json = response_json(detail_after_assets)
         v.require(
@@ -347,6 +355,16 @@ def run_validation() -> tuple[Validation, int]:
         work_id = work.get("id")
         v.require("Student copies template as personal work", work_response.status_code == 200 and work_id, f"work_id={work_id}")
         v.artifacts["work_id"] = work_id
+
+        student_editor = student.get(f"/scratch/editor?work_id={work_id}")
+        student_editor_text = student_editor.get_data(as_text=True)
+        v.require(
+            "Student can open Scratch graphical work editor",
+            student_editor.status_code == 200
+            and "SCRATCH_OJ_LOAD_SB3" in student_editor_text
+            and "SCRATCH_OJ_EXPORT_SB3" in student_editor_text,
+            f"status={student_editor.status_code}",
+        )
 
         editor_save = student.post(
             f"/api/scratch/works/{work_id}/editor-save",
@@ -434,6 +452,7 @@ def write_report(v: Validation, exit_code: int) -> Path:
             "## P2 结论",
             "",
             "- 当前版本已完成老师上传课件、上传并绑定 Scratch 预设模板、学生复制模板为个人作品、从编辑器保存 .sb3 和缩略图、提交作品、教师查看与点评。",
+            "- 老师可从课次详情进入模板图形化预览；学生可从学生端预览模板，并从个人作品入口进入 Scratch GUI 保存和提交。",
             "- 当前上课流程未启用测试点、自动判题或动态运行测评；提交后默认保持 `judge_status=not_started`，符合本轮“暂不考虑测试点”的范围。",
             "- 已补充 `.sb3/.sb2` 基础结构校验：模板或作品文件必须是可解析压缩包且包含 `project.json`。",
             "- Flask 经典展示页已禁用，GET 页面入口由 Vue shell 接管，非 API 表单写入返回 410。",

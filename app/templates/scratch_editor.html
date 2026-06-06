@@ -1,171 +1,456 @@
-{% extends "base.html" %}
-{% block title %}Scratch 编辑器 - 课时签到系统{% endblock %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} - Scratch 图形化编程</title>
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --line: #d9e2ef;
+            --primary: #2563eb;
+            --primary-strong: #1d4ed8;
+            --success: #0f766e;
+            --danger: #dc2626;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+        }
+        .topbar {
+            min-height: 76px;
+            padding: 16px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+        }
+        .title-block {
+            min-width: 0;
+        }
+        .eyebrow {
+            margin: 0 0 4px;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+        .subtitle {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        button,
+        .button-link {
+            min-height: 36px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        button.primary {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: #fff;
+        }
+        button.primary:hover {
+            background: var(--primary-strong);
+        }
+        button:disabled {
+            cursor: not-allowed;
+            opacity: .55;
+        }
+        .status {
+            margin: 12px 22px 0;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .status.success {
+            border-color: #99f6e4;
+            background: #ecfdf5;
+            color: var(--success);
+        }
+        .status.error {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: var(--danger);
+        }
+        .editor-wrap {
+            height: calc(100vh - 150px);
+            min-height: 560px;
+            margin: 12px 22px 22px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--panel);
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            background: #fff;
+        }
+        .fallback {
+            margin: 0 22px 22px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+        .fallback strong {
+            margin-right: 4px;
+        }
+        input[type="text"] {
+            min-height: 36px;
+            min-width: 220px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0 10px;
+            font: inherit;
+        }
+        input[type="file"] {
+            max-width: 260px;
+        }
+        @media (max-width: 760px) {
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .actions {
+                justify-content: flex-start;
+            }
+            .editor-wrap {
+                height: calc(100vh - 230px);
+                margin: 10px;
+            }
+            .status,
+            .fallback {
+                margin-left: 10px;
+                margin-right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="title-block">
+            <p class="eyebrow">Scratch 图形化编程</p>
+            <h1>{{ title }}</h1>
+            <p class="subtitle">
+                {% if work %}
+                当前为学生个人作品，可保存并提交。
+                {% elif template %}
+                当前为课次预设代码模板，可直接预览图形化代码。
+                {% else %}
+                Scratch 编辑器已启动。
+                {% endif %}
+            </p>
+        </div>
+        <div class="actions">
+            <button type="button" id="load-project">加载预设代码</button>
+            {% if work %}
+            <button type="button" id="save-project" class="primary">保存作品</button>
+            <button type="button" id="submit-project" class="primary">提交作品</button>
+            {% endif %}
+            {% if project_url %}
+            <a class="button-link" href="{{ project_url }}" target="_blank" rel="noreferrer">下载当前 sb3</a>
+            {% endif %}
+            <a class="button-link" href="{{ config.editor_url }}" target="_blank" rel="noreferrer">新窗口打开</a>
+        </div>
+    </header>
 
-{% block content %}
-<header class="page-header">
-    <div>
-        <p class="eyebrow">Scratch 课堂</p>
-        <h1>{{ work.title if work else (template.title if template else 'Scratch 编辑器') }}</h1>
-        <p>编辑器会通过消息桥接保存 .sb3 和缩略图；下方保留手动上传兜底。</p>
-    </div>
-    <div class="toolbar">
-        <a class="button" href="{{ config.editor_url }}" target="_blank" rel="noreferrer">新窗口打开编辑器</a>
-        {% if work %}
-        <button type="button" id="submit-work">提交作品</button>
-        <button type="button" id="run-judge">运行测评</button>
-        {% endif %}
-    </div>
-</header>
+    <div id="editor-status" class="status">正在准备 Scratch GUI...</div>
 
-<section class="panel">
-    <div class="section-title">
-        <h2>编辑器</h2>
-        <span class="muted">work_id={{ work_id or '-' }} · template_id={{ template_id or '-' }}</span>
-    </div>
-    <div id="editor-status" class="notice muted">等待 Scratch GUI 连接保存桥接。</div>
-    <div class="scratch-editor-frame">
-        <iframe id="scratch-frame" title="Scratch Editor"></iframe>
-    </div>
-</section>
+    <main class="editor-wrap">
+        <iframe
+            id="scratch-frame"
+            title="Scratch 页面内编辑器"
+            src="{{ config.editor_url }}"
+            allow="camera; microphone; clipboard-read; clipboard-write"
+        ></iframe>
+    </main>
 
-{% if work %}
-<section class="panel">
-    <div class="section-title">
-        <h2>手动保存兜底</h2>
-        <span class="muted">当 GUI 尚未接入消息桥时使用</span>
-    </div>
-    <form id="fallback-save-form" class="inline-form">
+    {% if work %}
+    <form id="fallback-save-form" class="fallback">
+        <strong>备用保存</strong>
         <input type="file" name="file" accept=".sb3,.sb2">
         <input type="file" name="thumbnail" accept="image/*">
         <input type="text" name="title" value="{{ work.title }}" placeholder="作品标题">
-        <button type="submit">保存文件</button>
+        <button type="submit">上传文件保存</button>
     </form>
-</section>
-{% endif %}
+    {% endif %}
 
-<section class="panel">
-    <div class="section-title"><h2>接入信息</h2></div>
-    <div class="mini-list">
-        <div><span>编辑器地址</span><strong>{{ config.editor_url }}</strong></div>
-        <div><span>项目文件</span><strong>{{ project_url or '尚未保存作品文件' }}</strong></div>
-        <div><span>OJ API</span><strong>{{ config.oj_api_url }}</strong></div>
-        <div><span>Hydro 地址</span><strong>{{ config.hydro_base_url or '未配置' }}</strong></div>
-        <div><span>本地作品目录</span><strong>{{ config.editor_project_dir }}</strong></div>
-    </div>
-</section>
+    <script>
+    (() => {
+        const context = {{ editor_context | tojson }};
+        const frame = document.getElementById("scratch-frame");
+        const status = document.getElementById("editor-status");
+        const pendingExports = new Map();
+        let frameReady = false;
+        let projectLoaded = false;
 
-<script>
-(() => {
-    const context = {
-        type: "class_worker_scratch_context",
-        workId: "{{ work_id }}",
-        templateId: "{{ template_id }}",
-        projectUrl: "{{ project_url }}",
-        saveEndpoint: "{{ url_for('api_editor_save_scratch_work', work_id=work.id) if work else '' }}",
-        fallbackSaveEndpoint: "{{ url_for('api_save_scratch_work', work_id=work.id) if work else '' }}",
-        submitEndpoint: "{{ url_for('api_submit_scratch_work', work_id=work.id) if work else '' }}",
-        judgeEndpoint: "{{ url_for('api_run_scratch_work_judge', work_id=work.id) if work else '' }}"
-    };
-    const frame = document.getElementById("scratch-frame");
-    const status = document.getElementById("editor-status");
-    const editorUrl = new URL("{{ config.editor_url }}", window.location.href);
-    if (context.workId) editorUrl.searchParams.set("work_id", context.workId);
-    if (context.templateId) editorUrl.searchParams.set("template_id", context.templateId);
-    if (context.projectUrl) editorUrl.searchParams.set("project_url", context.projectUrl);
-    frame.src = editorUrl.toString();
-
-    function setStatus(text, tone = "muted") {
-        status.textContent = text;
-        status.className = `notice ${tone}`;
-    }
-
-    function parseMessage(data) {
-        if (!data) return null;
-        if (typeof data === "string") {
-            try { return JSON.parse(data); } catch { return null; }
+        function setStatus(text, tone = "") {
+            status.textContent = text;
+            status.className = `status ${tone}`.trim();
         }
-        return data;
-    }
 
-    async function requestJson(url, options = {}) {
-        const response = await fetch(url, { credentials: "include", ...options });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.ok === false) {
-            throw new Error(data.message || "请求失败");
+        function parseMessage(data) {
+            if (!data) return null;
+            if (typeof data === "string") {
+                try {
+                    return JSON.parse(data);
+                } catch {
+                    return null;
+                }
+            }
+            return data;
         }
-        return data;
-    }
 
-    frame.addEventListener("load", () => {
-        frame.contentWindow?.postMessage(context, "*");
-        setStatus("已向 Scratch GUI 发送保存上下文。");
-    });
+        function postToEditor(message, transfer = []) {
+            if (!frame.contentWindow) {
+                setStatus("Scratch GUI 还没有准备好。", "error");
+                return false;
+            }
+            frame.contentWindow.postMessage(message, context.editorOrigin || "*", transfer);
+            return true;
+        }
 
-    window.addEventListener("message", async (event) => {
-        const payload = parseMessage(event.data);
-        if (!payload || !context.saveEndpoint) return;
-        const type = payload.type || payload.event;
-        const saveTypes = new Set([
-            "class_worker_save_project",
-            "scratch-project-save",
-            "scratch_save_project",
-            "scratchProjectSaved"
-        ]);
-        if (!saveTypes.has(type)) return;
-        try {
-            setStatus("正在保存编辑器作品...");
-            const projectBase64 = payload.project_base64 || payload.sb3_base64 || payload.projectBase64 || payload.project;
-            const thumbnailBase64 = payload.thumbnail_base64 || payload.thumbnailBase64 || payload.thumbnail;
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000;
+            let binary = "";
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        async function requestJson(url, options = {}) {
+            const response = await fetch(url, { credentials: "include", ...options });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.ok === false) {
+                throw new Error(data.message || `请求失败：${response.status}`);
+            }
+            return data;
+        }
+
+        async function loadProjectFromUrl(force = false) {
+            if (!context.projectUrl) {
+                setStatus("当前没有可加载的预设代码文件。", "error");
+                return;
+            }
+            if (!frameReady) {
+                setStatus("Scratch GUI 仍在加载，请稍后再试。");
+                return;
+            }
+            if (projectLoaded && !force) return;
+            try {
+                setStatus("正在加载预设代码到 Scratch GUI...");
+                const response = await fetch(context.projectUrl, { credentials: "include" });
+                if (!response.ok) {
+                    throw new Error(`下载 sb3 失败：${response.status}`);
+                }
+                const content = await response.arrayBuffer();
+                const requestId = `load-${Date.now()}`;
+                const filename = `${context.title || "scratch-project"}.sb3`;
+                postToEditor(
+                    { type: "SCRATCH_OJ_LOAD_SB3", requestId, filename, content },
+                    [content]
+                );
+            } catch (error) {
+                setStatus(error.message || "预设代码加载失败。", "error");
+            }
+        }
+
+        function exportProject(operation) {
+            return new Promise((resolve, reject) => {
+                if (!frameReady) {
+                    reject(new Error("Scratch GUI 还没有准备好。"));
+                    return;
+                }
+                const requestId = `${operation}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                const timer = window.setTimeout(() => {
+                    pendingExports.delete(requestId);
+                    reject(new Error("Scratch GUI 导出超时，请确认页面内编辑器已加载完成。"));
+                }, 15000);
+                pendingExports.set(requestId, { resolve, reject, timer });
+                postToEditor({ type: "SCRATCH_OJ_EXPORT_SB3", requestId, operation });
+            });
+        }
+
+        async function saveProject(operation = "save") {
+            if (!context.saveEndpoint) {
+                setStatus("模板预览模式不保存，请从学生作品入口进入后保存。", "error");
+                return null;
+            }
+            setStatus(operation === "submit" ? "正在导出并保存作品..." : "正在保存作品...");
+            const result = await exportProject(operation);
+            const projectBase64 = arrayBufferToBase64(result.content);
             const data = await requestJson(context.saveEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    title: payload.title,
-                    submit_note: payload.submit_note,
+                    title: (result.title || context.title || "").replace(/\.sb3$/i, ""),
                     project_base64: projectBase64,
-                    thumbnail_base64: thumbnailBase64,
-                    editor_url: frame.src
+                    editor_url: frame.src,
                 })
             });
             setStatus(`已保存：${data.work.title}`, "success");
-        } catch (error) {
-            setStatus(`保存失败：${error.message}`, "error");
+            return data.work;
         }
-    });
 
-    document.getElementById("fallback-save-form")?.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        try {
-            setStatus("正在上传文件保存...");
-            const formData = new FormData(event.currentTarget);
-            const data = await requestJson(context.fallbackSaveEndpoint, { method: "PUT", body: formData });
-            setStatus(`已保存：${data.work.title}`, "success");
-        } catch (error) {
-            setStatus(`保存失败：${error.message}`, "error");
+        async function submitProject() {
+            try {
+                await saveProject("submit");
+                const data = await requestJson(context.submitEndpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ submit_note: "从 Scratch 图形化编辑器提交" })
+                });
+                setStatus(`已提交：${data.work.title}`, "success");
+            } catch (error) {
+                setStatus(error.message || "提交失败。", "error");
+            }
         }
-    });
 
-    document.getElementById("submit-work")?.addEventListener("click", async () => {
-        try {
-            const data = await requestJson(context.submitEndpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ submit_note: "从编辑器提交" })
-            });
-            setStatus(`已提交：${data.work.title}`, "success");
-        } catch (error) {
-            setStatus(`提交失败：${error.message}`, "error");
-        }
-    });
+        window.addEventListener("message", async (event) => {
+            if (context.editorOrigin && context.editorOrigin !== "*" && event.origin !== context.editorOrigin) {
+                return;
+            }
+            const payload = parseMessage(event.data);
+            if (!payload || !payload.type) return;
 
-    document.getElementById("run-judge")?.addEventListener("click", async () => {
-        try {
-            const data = await requestJson(context.judgeEndpoint, { method: "POST" });
-            setStatus(`测评完成：${data.result.status} / ${data.result.totalScore}`, "success");
-        } catch (error) {
-            setStatus(`测评失败：${error.message}`, "error");
-        }
-    });
-})();
-</script>
-{% endblock %}
+            if (payload.type === "SCRATCH_OJ_LOAD_SUCCESS") {
+                projectLoaded = true;
+                setStatus(payload.filename ? `已加载：${payload.filename}` : "已加载预设代码。", "success");
+                return;
+            }
+
+            if (payload.type === "SCRATCH_OJ_LOAD_ERROR") {
+                setStatus(payload.message || "预设代码加载失败。", "error");
+                return;
+            }
+
+            if (payload.type === "SCRATCH_OJ_EXPORT_SB3_ERROR" || payload.type === "SCRATCH_OJ_SUBMIT_ERROR") {
+                const pending = pendingExports.get(payload.requestId);
+                if (pending) {
+                    window.clearTimeout(pending.timer);
+                    pendingExports.delete(payload.requestId);
+                    pending.reject(new Error(payload.message || "Scratch 导出失败。"));
+                } else {
+                    setStatus(payload.message || "Scratch 导出失败。", "error");
+                }
+                return;
+            }
+
+            if (payload.type === "SCRATCH_OJ_EXPORT_SB3_RESULT") {
+                const pending = pendingExports.get(payload.requestId);
+                if (!pending) return;
+                window.clearTimeout(pending.timer);
+                pendingExports.delete(payload.requestId);
+                pending.resolve(payload);
+                return;
+            }
+
+            if (payload.type === "SCRATCH_OJ_SUBMIT_SB3" && context.saveEndpoint) {
+                try {
+                    const projectBase64 = arrayBufferToBase64(payload.content);
+                    await requestJson(context.saveEndpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            title: (payload.title || payload.filename || context.title || "").replace(/\.sb3$/i, ""),
+                            project_base64: projectBase64,
+                            editor_url: frame.src,
+                        })
+                    });
+                    const data = await requestJson(context.submitEndpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ submit_note: "从 Scratch GUI 提交" })
+                    });
+                    setStatus(`已提交：${data.work.title}`, "success");
+                } catch (error) {
+                    setStatus(error.message || "提交失败。", "error");
+                }
+            }
+        });
+
+        frame.addEventListener("load", () => {
+            frameReady = true;
+            setStatus("Scratch GUI 已加载，正在载入预设代码...");
+            window.setTimeout(() => loadProjectFromUrl(), 500);
+        });
+
+        document.getElementById("load-project")?.addEventListener("click", () => {
+            projectLoaded = false;
+            void loadProjectFromUrl(true);
+        });
+
+        document.getElementById("save-project")?.addEventListener("click", async () => {
+            try {
+                await saveProject("save");
+            } catch (error) {
+                setStatus(error.message || "保存失败。", "error");
+            }
+        });
+
+        document.getElementById("submit-project")?.addEventListener("click", () => {
+            void submitProject();
+        });
+
+        document.getElementById("fallback-save-form")?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            try {
+                setStatus("正在通过备用方式保存文件...");
+                const formData = new FormData(event.currentTarget);
+                const data = await requestJson(context.fallbackSaveEndpoint, { method: "PUT", body: formData });
+                setStatus(`已保存：${data.work.title}`, "success");
+            } catch (error) {
+                setStatus(error.message || "备用保存失败。", "error");
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

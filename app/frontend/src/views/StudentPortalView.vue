@@ -78,9 +78,10 @@
           <el-table-column label="点评" min-width="180">
             <template #default="{ row }">{{ row.review_comment || '-' }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="150">
+          <el-table-column label="操作" width="210">
             <template #default="{ row }">
-              <el-button v-if="row.work_id" size="small" type="primary" @click="openEditor(row.work_id)">打开</el-button>
+              <el-button size="small" @click="openTemplate(row)">预览</el-button>
+              <el-button v-if="row.work_id" size="small" type="primary" @click="openEditor(row.work_id)">继续</el-button>
               <el-button v-else size="small" type="primary" :loading="startingKey === `${row.lesson_id}-${row.template_id}`" @click="startWork(row)">开始</el-button>
             </template>
           </el-table-column>
@@ -129,6 +130,10 @@ async function startWork(row) {
 function openBackend(path) {
   if (!path) return
   window.open(path.startsWith('http') ? path : `${backendOrigin}${path}`, '_blank', 'noopener,noreferrer')
+}
+
+function openTemplate(row) {
+  openBackend(`/scratch/editor?template_id=${row.template_id}`)
 }
 
 function openEditor(workId) {
