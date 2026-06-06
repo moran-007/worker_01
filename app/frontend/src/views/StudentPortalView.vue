@@ -7,6 +7,7 @@
         <p>查看自己的课程、课件和 Scratch 课堂作品。</p>
       </div>
       <div class="portal-actions">
+        <el-button type="primary" @click="scrollToClassroom">进入上课</el-button>
         <el-button @click="loadPortal">刷新</el-button>
         <el-button type="primary" plain @click="logout">退出登录</el-button>
       </div>
@@ -18,6 +19,44 @@
         <strong>{{ item.value }}</strong>
         <small>{{ item.hint }}</small>
       </article>
+    </section>
+
+    <section id="student-classroom" class="student-classroom-section">
+      <el-card shadow="never" class="portal-card classroom-focus-card">
+        <template #header>
+          <div class="table-title">
+            <span>我的上课任务</span>
+            <span>{{ scratchTasks.length }} 个</span>
+          </div>
+        </template>
+        <el-table :data="scratchTasks" size="small" empty-text="老师绑定 Scratch 模板后会显示在这里">
+          <el-table-column label="模板/作品" min-width="210">
+            <template #default="{ row }">
+              <strong>{{ row.title }}</strong>
+              <p class="muted-inline">{{ row.description || row.bind_note || '进入作品后可保存进度，也可提交给老师' }}</p>
+            </template>
+          </el-table-column>
+          <el-table-column prop="class_name" label="班级" width="140" />
+          <el-table-column prop="lesson_date" label="课次日期" width="120" />
+          <el-table-column label="状态" width="110">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.work_status === 'submitted' || row.work_status === 'reviewed' ? 'success' : 'info'">
+                {{ scratchStatusText(row.work_status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="点评" min-width="180">
+            <template #default="{ row }">{{ row.review_comment || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="260">
+            <template #default="{ row }">
+              <el-button size="small" @click="openTemplate(row)">查看模板</el-button>
+              <el-button v-if="row.work_id" size="small" type="primary" @click="openEditor(row.work_id)">继续编辑/提交</el-button>
+              <el-button v-else size="small" type="primary" :loading="startingKey === `${row.lesson_id}-${row.template_id}`" @click="startWork(row)">开始上课</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
     </section>
 
     <section class="portal-grid">
@@ -59,34 +98,6 @@
         </div>
       </el-card>
 
-      <el-card shadow="never" class="portal-card portal-wide">
-        <template #header>
-          <div class="table-title">
-            <span>Scratch 课堂作品</span>
-            <span>{{ scratchTasks.length }} 个</span>
-          </div>
-        </template>
-        <el-table :data="scratchTasks" size="small" empty-text="老师绑定模板后会显示在这里">
-          <el-table-column prop="title" label="模板/作品" min-width="180" />
-          <el-table-column prop="class_name" label="班级" width="140" />
-          <el-table-column prop="lesson_date" label="课次日期" width="120" />
-          <el-table-column label="状态" width="110">
-            <template #default="{ row }">
-              <el-tag size="small">{{ row.work_status || '未开始' }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="点评" min-width="180">
-            <template #default="{ row }">{{ row.review_comment || '-' }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="210">
-            <template #default="{ row }">
-              <el-button size="small" @click="openTemplate(row)">预览</el-button>
-              <el-button v-if="row.work_id" size="small" type="primary" @click="openEditor(row.work_id)">继续</el-button>
-              <el-button v-else size="small" type="primary" :loading="startingKey === `${row.lesson_id}-${row.template_id}`" @click="startWork(row)">开始</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
     </section>
   </main>
 </template>
@@ -138,6 +149,18 @@ function openTemplate(row) {
 
 function openEditor(workId) {
   openBackend(`/scratch/editor?work_id=${workId}`)
+}
+
+function scrollToClassroom() {
+  document.getElementById('student-classroom')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function scratchStatusText(status) {
+  return {
+    draft: '已保存',
+    submitted: '已交老师',
+    reviewed: '已点评'
+  }[status] || '未开始'
 }
 
 async function logout() {

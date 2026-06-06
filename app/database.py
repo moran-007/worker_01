@@ -1174,26 +1174,38 @@ def ensure_schema_migrations(db):
 
 
 def apply_permission_data_migrations(db, now: str):
-    migration_key = "20260605_teacher_scratch_classroom_defaults"
-    applied = db.execute(
-        "SELECT migration_key FROM system_migrations WHERE migration_key = ?",
-        (migration_key,),
-    ).fetchone()
-    if applied:
-        return
-    for permission_key in ("scratch.templates.manage", "scratch.works.review", "uploads.manage"):
+    migrations = [
+        (
+            "20260605_teacher_scratch_classroom_defaults",
+            "teacher",
+            ("scratch.templates.manage", "scratch.works.review", "uploads.manage"),
+        ),
+        (
+            "20260606_student_scratch_submit_defaults",
+            "student",
+            ("student_portal.view", "scratch.templates.view", "scratch.works.view", "scratch.works.manage"),
+        ),
+    ]
+    for migration_key, role_code, permission_keys in migrations:
+        applied = db.execute(
+            "SELECT migration_key FROM system_migrations WHERE migration_key = ?",
+            (migration_key,),
+        ).fetchone()
+        if applied:
+            continue
+        for permission_key in permission_keys:
+            db.execute(
+                """
+                INSERT OR IGNORE INTO role_permission_assignments
+                    (role_code, permission_key, created_at, updated_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (role_code, permission_key, now, now),
+            )
         db.execute(
-            """
-            INSERT OR IGNORE INTO role_permission_assignments
-                (role_code, permission_key, created_at, updated_at)
-            VALUES ('teacher', ?, ?, ?)
-            """,
-            (permission_key, now, now),
+            "INSERT OR IGNORE INTO system_migrations (migration_key, applied_at) VALUES (?, ?)",
+            (migration_key, now),
         )
-    db.execute(
-        "INSERT OR IGNORE INTO system_migrations (migration_key, applied_at) VALUES (?, ?)",
-        (migration_key, now),
-    )
 
 
 def seed_permission_tables(db, now: str):

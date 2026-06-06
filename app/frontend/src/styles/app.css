@@ -295,6 +295,48 @@ body {
   margin-top: 8px;
 }
 
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.quick-action {
+  min-height: 118px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.045);
+}
+
+.quick-action.primary {
+  border-color: #93c5fd;
+  background: linear-gradient(135deg, #eff6ff, #ffffff 58%);
+}
+
+.quick-action span {
+  color: var(--blue);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.quick-action strong {
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.quick-action small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .data-card.el-card,
 .section-card.el-card,
 .login-card.el-card {
@@ -342,6 +384,16 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.student-classroom-section {
+  margin: 0 0 16px;
+}
+
+.classroom-focus-card.el-card {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  box-shadow: 0 14px 36px rgba(37, 99, 235, 0.08);
 }
 
 .portal-metrics {
@@ -503,6 +555,120 @@ body {
 .lesson-detail-page {
   display: grid;
   gap: 16px;
+}
+
+.workbench-page {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.workbench-side {
+  display: grid;
+  gap: 14px;
+}
+
+.workbench-panel {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.045);
+}
+
+.workbench-panel.hero {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.workbench-panel.hero.blue {
+  border-color: #99f6e4;
+  background: linear-gradient(135deg, #ecfeff, #ffffff);
+}
+
+.workbench-panel.hero span,
+.workbench-stat span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.workbench-panel.hero strong {
+  color: var(--blue);
+  font-size: 40px;
+  line-height: 1;
+}
+
+.workbench-panel.hero small {
+  color: var(--muted);
+}
+
+.workbench-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.workbench-stat strong {
+  color: var(--text);
+  font-size: 22px;
+}
+
+.workbench-main {
+  min-width: 0;
+}
+
+.classroom-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.classroom-card {
+  padding: 16px;
+  border: 1px solid #e5edf7;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  background: #fbfdff;
+}
+
+.classroom-card-title,
+.classroom-card-meta,
+.classroom-resource-row,
+.classroom-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.classroom-card-title {
+  justify-content: space-between;
+}
+
+.classroom-card-title div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.classroom-card-title strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.classroom-card-title span,
+.classroom-card-meta span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.classroom-card-actions {
+  justify-content: flex-end;
 }
 
 .lesson-detail-meta {
@@ -763,6 +929,9 @@ body {
 
   .content-grid,
   .chart-grid,
+  .quick-actions,
+  .workbench-page,
+  .classroom-card-grid,
   .scratch-workspace,
   .resource-workspace,
   .portal-grid,

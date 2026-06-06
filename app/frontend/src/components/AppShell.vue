@@ -13,6 +13,14 @@
           <el-icon><DataBoard /></el-icon>
           <span>首页</span>
         </el-menu-item>
+        <el-menu-item v-if="can('lesson_detail.view')" index="/teacher/prep">
+          <el-icon><Reading /></el-icon>
+          <span>教师备课</span>
+        </el-menu-item>
+        <el-menu-item v-if="can('lessons.view')" index="/classroom">
+          <el-icon><VideoPlay /></el-icon>
+          <span>上课入口</span>
+        </el-menu-item>
         <el-menu-item v-if="can('students.view')" index="/students">
           <el-icon><User /></el-icon>
           <span>学生</span>
@@ -126,6 +134,8 @@ const titleMap = {
   '/lesson-types': '课程类型',
   '/course-presets': '预设课程',
   '/lessons': '课次管理',
+  '/teacher/prep': '教师备课',
+  '/classroom': '上课入口',
   '/lessons/generate': '批量生成课次',
   '/statistics': '统计导出',
   '/users': '账号权限',
@@ -141,6 +151,8 @@ const subtitleMap = {
   '/lesson-types': '课程类型、默认课时和是否计入统计',
   '/course-presets': '维护课程大类、阶段、节次和具体课程名称',
   '/lessons': '按日期查看课次、签到状态和到课情况',
+  '/teacher/prep': '集中上传课件、绑定 Scratch 预设模板和检查备课完成度',
+  '/classroom': '快速进入今日课堂、签到、模板预览和作品点评',
   '/lessons/generate': '按班级、日期范围和星期批量创建计划课次',
   '/statistics': '按日、周、月或自定义范围查看和导出数据',
   '/users': '账号角色、教师关联和登录权限',
@@ -161,6 +173,8 @@ const subtitle = computed(() => {
 })
 const activeMenu = computed(() => {
   if (route.name === 'generateLessons') return '/lessons/generate'
+  if (route.name === 'teacherPrep') return '/teacher/prep'
+  if (route.name === 'classroom') return '/classroom'
   return route.path.startsWith('/lessons') ? '/lessons' : route.path
 })
 

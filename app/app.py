@@ -598,27 +598,50 @@ def create_app() -> Flask:
         work = get_scratch_work(work_id) if work_id else None
         if work is not None:
             ensure_scratch_work_access(work, write=False)
+        can_write_work = False
+        if work is not None and g.get("current_user"):
+            current_role = normalize_role(g.current_user["role"])
+            can_write_work = (
+                current_role == "student"
+                and g.current_user.get("student_id")
+                and int(g.current_user["student_id"]) == int(work["student_id"])
+                and work.get("status") != "reviewed"
+            )
         template = get_scratch_template(template_id) if template_id else None
         if template_id and template is None:
             abort(404)
         if template is not None:
             ensure_scratch_template_preview_access(template["id"])
-        project_url = ""
-        if work and work.get("asset_url"):
-            project_url = absolute_app_url(work["asset_url"])
+        saved_project_url = ""
+        template_project_url = ""
+        has_personal_saved_project = (
+            bool(work and work.get("asset_id"))
+            and (
+                not work.get("template_asset_id")
+                or int(work["asset_id"]) != int(work["template_asset_id"])
+            )
+        )
+        if work and has_personal_saved_project and work.get("asset_url"):
+            saved_project_url = absolute_app_url(work["asset_url"])
+        if work and work.get("template_asset_url"):
+            template_project_url = absolute_app_url(work["template_asset_url"])
         elif template and template.get("asset_url"):
-            project_url = absolute_app_url(template["asset_url"])
+            template_project_url = absolute_app_url(template["asset_url"])
+        project_url = saved_project_url or template_project_url
         title = work["title"] if work else (template["title"] if template else "Scratch 编辑器")
         editor_context = {
             "workId": str(work_id or ""),
             "templateId": str(template_id or ""),
             "title": title,
             "projectUrl": project_url,
+            "savedProjectUrl": saved_project_url,
+            "templateProjectUrl": template_project_url,
+            "initialProjectSource": "saved" if saved_project_url else "template",
             "editorUrl": scratch_editor_config()["editor_url"],
             "editorOrigin": origin_from_url(scratch_editor_config()["editor_url"]),
-            "saveEndpoint": url_for("api_editor_save_scratch_work", work_id=work["id"]) if work else "",
-            "fallbackSaveEndpoint": url_for("api_save_scratch_work", work_id=work["id"]) if work else "",
-            "submitEndpoint": url_for("api_submit_scratch_work", work_id=work["id"]) if work else "",
+            "saveEndpoint": url_for("api_editor_save_scratch_work", work_id=work["id"]) if can_write_work else "",
+            "fallbackSaveEndpoint": url_for("api_save_scratch_work", work_id=work["id"]) if can_write_work else "",
+            "submitEndpoint": url_for("api_submit_scratch_work", work_id=work["id"]) if can_write_work else "",
         }
         return render_template(
             "scratch_editor.html",
@@ -630,6 +653,7 @@ def create_app() -> Flask:
             template_id=str(template_id or ""),
             project_url=project_url,
             editor_context=editor_context,
+            can_write_work=can_write_work,
         )
 
     @app.get("/api/scratch/templates")
@@ -5440,8 +5464,12 @@ def get_scratch_work(work_id: int) -> dict | None:
     row = fetch_one(
         """
         SELECT sw.*, s.name AS student_name, st.title AS template_title,
+               st.asset_id AS template_asset_id,
+               st.thumbnail_asset_id AS template_thumbnail_asset_id,
                l.lesson_date, l.start_time, l.end_time, c.class_name,
                a.public_path AS asset_url, ta.public_path AS thumbnail_url,
+               sta.public_path AS template_asset_url,
+               stta.public_path AS template_thumbnail_url,
                reviewer.display_name AS reviewer_name
         FROM scratch_works sw
         JOIN students s ON s.id = sw.student_id
@@ -5450,6 +5478,8 @@ def get_scratch_work(work_id: int) -> dict | None:
         LEFT JOIN classes c ON c.id = l.class_id
         LEFT JOIN uploaded_assets a ON a.id = sw.asset_id
         LEFT JOIN uploaded_assets ta ON ta.id = sw.thumbnail_asset_id
+        LEFT JOIN uploaded_assets sta ON sta.id = st.asset_id
+        LEFT JOIN uploaded_assets stta ON stta.id = st.thumbnail_asset_id
         LEFT JOIN users reviewer ON reviewer.id = sw.reviewed_by
         WHERE sw.id = ?
         """,
@@ -5475,8 +5505,12 @@ def query_scratch_works(filters: dict | None = None):
     return fetch_all(
         f"""
         SELECT sw.*, s.name AS student_name, st.title AS template_title,
+               st.asset_id AS template_asset_id,
+               st.thumbnail_asset_id AS template_thumbnail_asset_id,
                l.lesson_date, l.start_time, l.end_time, c.class_name,
                a.public_path AS asset_url, ta.public_path AS thumbnail_url,
+               sta.public_path AS template_asset_url,
+               stta.public_path AS template_thumbnail_url,
                reviewer.display_name AS reviewer_name
         FROM scratch_works sw
         JOIN students s ON s.id = sw.student_id
@@ -5485,6 +5519,8 @@ def query_scratch_works(filters: dict | None = None):
         LEFT JOIN classes c ON c.id = l.class_id
         LEFT JOIN uploaded_assets a ON a.id = sw.asset_id
         LEFT JOIN uploaded_assets ta ON ta.id = sw.thumbnail_asset_id
+        LEFT JOIN uploaded_assets sta ON sta.id = st.asset_id
+        LEFT JOIN uploaded_assets stta ON stta.id = st.thumbnail_asset_id
         LEFT JOIN users reviewer ON reviewer.id = sw.reviewed_by
         {where_sql}
         ORDER BY sw.updated_at DESC, sw.id DESC
@@ -5528,6 +5564,8 @@ def query_student_scratch_tasks(student_id: int):
 def ensure_scratch_work_access(work: dict, write: bool = False):
     user = g.get("current_user")
     role = normalize_role(user["role"]) if user else ""
+    if write and role != "student":
+        abort(403)
     if role == "student":
         if not user.get("student_id") or int(user["student_id"]) != int(work["student_id"]):
             abort(403)
@@ -5574,7 +5612,7 @@ def save_scratch_work_progress(work: dict, req) -> dict:
         """
         UPDATE scratch_works
         SET title = ?, asset_id = ?, thumbnail_asset_id = ?, editor_url = ?,
-            submit_note = ?, updated_at = ?
+            submit_note = ?, status = 'draft', submitted_at = NULL, updated_at = ?
         WHERE id = ?
         """,
         (
@@ -5595,6 +5633,8 @@ def save_scratch_work_from_editor(work: dict, data: dict) -> dict:
     project_base64 = data.get("project_base64") or data.get("sb3_base64") or data.get("project")
     project_bytes = decode_base64_payload(project_base64, "Scratch 作品")
     title = (data.get("title") or work["title"] or f"scratch-work-{work['id']}").strip()
+    save_mode = (data.get("save_mode") or data.get("operation") or "draft").strip().lower()
+    draft_save = 1 if save_mode != "submit" else 0
     validate_scratch_project_bytes(f"work-{work['id']}.sb3", project_bytes)
     asset = save_binary_asset(
         f"work-{work['id']}.sb3",
@@ -5620,7 +5660,10 @@ def save_scratch_work_from_editor(work: dict, data: dict) -> dict:
         """
         UPDATE scratch_works
         SET title = ?, asset_id = ?, thumbnail_asset_id = ?, editor_url = ?,
-            submit_note = ?, updated_at = ?
+            submit_note = ?,
+            status = CASE WHEN ? = 1 THEN 'draft' ELSE status END,
+            submitted_at = CASE WHEN ? = 1 THEN NULL ELSE submitted_at END,
+            updated_at = ?
         WHERE id = ?
         """,
         (
@@ -5629,6 +5672,8 @@ def save_scratch_work_from_editor(work: dict, data: dict) -> dict:
             thumbnail_asset_id,
             (data.get("editor_url") or work.get("editor_url") or "").strip(),
             (data.get("submit_note") or work.get("submit_note") or "").strip(),
+            draft_save,
+            draft_save,
             now_text(),
             work["id"],
         ),

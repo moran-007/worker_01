@@ -71,9 +71,10 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="170" fixed="right">
+      <el-table-column label="操作" width="210" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="$router.push(`/lessons/${row.id}/detail`)">详情</el-button>
+          <el-button link type="primary" @click="$router.push(`/lessons/${row.id}/detail`)">备课</el-button>
+          <el-button link type="success" @click="$router.push(`/lessons/${row.id}/detail`)">上课</el-button>
           <el-button link type="primary" @click="$router.push(`/lessons/${row.id}/attendance`)">签到</el-button>
           <el-button v-if="canManageLessons && row.status !== 'cancelled'" link type="danger" @click="cancelLesson(row)">取消</el-button>
         </template>

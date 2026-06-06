@@ -219,7 +219,7 @@ def run_validation() -> tuple[Validation, int]:
     parent = app.test_client()
 
     try:
-        for path in ["/", "/login", "/student", "/parent", "/students", "/students/1/edit"]:
+        for path in ["/", "/login", "/student", "/parent", "/teacher/prep", "/classroom", "/students", "/students/1/edit"]:
             assert_vue_shell(v, admin, path)
         blocked = admin.post("/students", data={"name": "legacy"})
         v.require("Classic Flask form POST is disabled", blocked.status_code == 410, f"status={blocked.status_code}")
@@ -311,7 +311,7 @@ def run_validation() -> tuple[Validation, int]:
         teacher_editor_text = teacher_editor.get_data(as_text=True)
         v.require(
             "Teacher can open Scratch graphical template editor",
-            teacher_editor.status_code == 200 and "SCRATCH_OJ_LOAD_SB3" in teacher_editor_text,
+            teacher_editor.status_code == 200 and "SCRATCH_OJ_LOAD_SB3" in teacher_editor_text and "加载预设代码" in teacher_editor_text,
             f"status={teacher_editor.status_code}",
         )
 
@@ -359,12 +359,33 @@ def run_validation() -> tuple[Validation, int]:
         student_editor = student.get(f"/scratch/editor?work_id={work_id}")
         student_editor_text = student_editor.get_data(as_text=True)
         v.require(
-            "Student can open Scratch graphical work editor",
+            "Student can open Scratch graphical work editor with draft and template actions",
             student_editor.status_code == 200
             and "SCRATCH_OJ_LOAD_SB3" in student_editor_text
             and "SCRATCH_OJ_EXPORT_SB3" in student_editor_text,
             f"status={student_editor.status_code}",
         )
+        v.require(
+            "Student editor exposes progress save, teacher template reload and teacher submit",
+            "保存进度" in student_editor_text and "重新加载老师模板" in student_editor_text and "提交给老师" in student_editor_text,
+            f"status={student_editor.status_code}",
+        )
+
+        teacher_work_editor = teacher.get(f"/scratch/editor?work_id={work_id}")
+        teacher_work_editor_text = teacher_work_editor.get_data(as_text=True)
+        v.require(
+            "Teacher can preview student work without save buttons",
+            teacher_work_editor.status_code == 200
+            and "当前为学生作品预览" in teacher_work_editor_text
+            and 'id="save-project"' not in teacher_work_editor_text
+            and 'id="submit-project"' not in teacher_work_editor_text,
+            f"status={teacher_work_editor.status_code}",
+        )
+        teacher_save_attempt = teacher.post(
+            f"/api/scratch/works/{work_id}/editor-save",
+            json={"project_base64": base64.b64encode(build_sb3_bytes("teacher-save-attempt")).decode("ascii")},
+        )
+        v.require("Teacher cannot save student Scratch work", teacher_save_attempt.status_code == 403, f"status={teacher_save_attempt.status_code}")
 
         editor_save = student.post(
             f"/api/scratch/works/{work_id}/editor-save",
@@ -372,11 +393,25 @@ def run_validation() -> tuple[Validation, int]:
                 "title": "QA Student Work",
                 "project_base64": base64.b64encode(build_sb3_bytes(f"work-{tag}")).decode("ascii"),
                 "thumbnail_base64": base64.b64encode(PNG_1X1).decode("ascii"),
+                "save_mode": "draft",
                 "submit_note": "Saved from validation script.",
             },
         )
         editor_work = response_json(editor_save).get("work") or {}
-        v.require("Editor save writes .sb3 and thumbnail", editor_save.status_code == 200 and editor_work.get("asset_id") and editor_work.get("thumbnail_asset_id"), f"asset={editor_work.get('asset_id')}, thumb={editor_work.get('thumbnail_asset_id')}")
+        v.require(
+            "Editor progress save writes .sb3, thumbnail and draft status",
+            editor_save.status_code == 200
+            and editor_work.get("asset_id")
+            and editor_work.get("thumbnail_asset_id")
+            and editor_work.get("status") == "draft",
+            f"asset={editor_work.get('asset_id')}, thumb={editor_work.get('thumbnail_asset_id')}, status={editor_work.get('status')}",
+        )
+        student_editor_after_save = student.get(f"/scratch/editor?work_id={work_id}")
+        v.require(
+            "Student editor loads personal saved progress after save",
+            student_editor_after_save.status_code == 200 and "加载上次保存" in student_editor_after_save.get_data(as_text=True),
+            f"status={student_editor_after_save.status_code}",
+        )
 
         submit_response = student.post(f"/api/scratch/works/{work_id}/submit", json={"submit_note": "Ready for review"})
         submitted_work = response_json(submit_response).get("work") or {}
@@ -452,7 +487,8 @@ def write_report(v: Validation, exit_code: int) -> Path:
             "## P2 结论",
             "",
             "- 当前版本已完成老师上传课件、上传并绑定 Scratch 预设模板、学生复制模板为个人作品、从编辑器保存 .sb3 和缩略图、提交作品、教师查看与点评。",
-            "- 老师可从课次详情进入模板图形化预览；学生可从学生端预览模板，并从个人作品入口进入 Scratch GUI 保存和提交。",
+            "- 老师可从课次详情、教师备课入口或上课入口进入模板图形化预览；学生可从学生端预览模板，并从个人作品入口进入 Scratch GUI 保存进度和提交给老师。",
+            "- 学生作品页会优先加载上一次保存进度，同时保留重新加载老师模板的按钮；教师只能预览学生作品，不能替学生保存或提交。",
             "- 当前上课流程未启用测试点、自动判题或动态运行测评；提交后默认保持 `judge_status=not_started`，符合本轮“暂不考虑测试点”的范围。",
             "- 已补充 `.sb3/.sb2` 基础结构校验：模板或作品文件必须是可解析压缩包且包含 `project.json`。",
             "- Flask 经典展示页已禁用，GET 页面入口由 Vue shell 接管，非 API 表单写入返回 410。",

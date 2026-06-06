@@ -1,5 +1,23 @@
 <template>
   <div v-loading="loading">
+    <section class="quick-actions">
+      <button type="button" class="quick-action" @click="router.push('/teacher/prep')">
+        <span>教师备课</span>
+        <strong>上传课件与预设代码</strong>
+        <small>进入每节课的课件、Scratch 模板和作品点评</small>
+      </button>
+      <button type="button" class="quick-action primary" @click="router.push('/classroom')">
+        <span>上课入口</span>
+        <strong>今日课堂直达</strong>
+        <small>签到、打开模板、查看学生作品</small>
+      </button>
+      <button type="button" class="quick-action" @click="router.push('/lessons')">
+        <span>课次管理</span>
+        <strong>排课与课程明细</strong>
+        <small>按日期筛选课次并维护基础信息</small>
+      </button>
+    </section>
+
     <section class="metric-grid">
       <MetricCard label="今日课程" :value="summary.lesson_count" icon="Calendar" tone="blue" />
       <MetricCard label="待签到" :value="summary.pending_count" icon="Clock" tone="amber" />
@@ -72,9 +90,11 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import MetricCard from '../components/MetricCard.vue'
 import { api } from '../api/http'
 
+const router = useRouter()
 const loading = ref(false)
 const summary = ref({})
 const todayLessons = ref([])

@@ -13,6 +13,8 @@ const LessonsView = () => import('../views/LessonsView.vue')
 const GenerateLessonsView = () => import('../views/GenerateLessonsView.vue')
 const LessonDetailView = () => import('../views/LessonDetailView.vue')
 const AttendanceView = () => import('../views/AttendanceView.vue')
+const TeacherPrepView = () => import('../views/TeacherPrepView.vue')
+const ClassroomView = () => import('../views/ClassroomView.vue')
 const StatisticsView = () => import('../views/StatisticsView.vue')
 const UsersView = () => import('../views/UsersView.vue')
 const LogsView = () => import('../views/LogsView.vue')
@@ -33,6 +35,8 @@ const router = createRouter({
     { path: '/lesson-types', name: 'lessonTypes', component: LessonTypesView, meta: { permission: 'lesson_types.view' } },
     { path: '/course-presets', name: 'coursePresets', component: CoursePresetsView, meta: { permission: 'course_presets.view' } },
     { path: '/lessons', name: 'lessons', component: LessonsView, meta: { permission: 'lessons.view' } },
+    { path: '/teacher/prep', name: 'teacherPrep', component: TeacherPrepView, meta: { permission: 'lesson_detail.view' } },
+    { path: '/classroom', name: 'classroom', component: ClassroomView, meta: { permission: 'lessons.view' } },
     { path: '/lessons/generate', name: 'generateLessons', component: GenerateLessonsView, meta: { permission: 'lessons.generate' } },
     { path: '/lessons/:id/detail', name: 'lessonDetail', component: LessonDetailView, meta: { permission: 'lesson_detail.view' } },
     { path: '/lessons/:id/attendance', name: 'attendance', component: AttendanceView, meta: { permission: 'attendance.view' } },

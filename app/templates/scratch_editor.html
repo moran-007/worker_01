@@ -178,7 +178,11 @@
             <h1>{{ title }}</h1>
             <p class="subtitle">
                 {% if work %}
-                当前为学生个人作品，可保存并提交。
+                {% if can_write_work %}
+                当前为学生个人作品，保存进度用于下次继续，提交后交给老师点评。
+                {% else %}
+                当前为学生作品预览，可查看学生保存进度和老师模板。
+                {% endif %}
                 {% elif template %}
                 当前为课次预设代码模板，可直接预览图形化代码。
                 {% else %}
@@ -187,10 +191,19 @@
             </p>
         </div>
         <div class="actions">
-            <button type="button" id="load-project">加载预设代码</button>
             {% if work %}
-            <button type="button" id="save-project" class="primary">保存作品</button>
-            <button type="button" id="submit-project" class="primary">提交作品</button>
+            {% if editor_context.savedProjectUrl %}
+            <button type="button" id="load-saved-project">加载上次保存</button>
+            {% endif %}
+            {% if editor_context.templateProjectUrl %}
+            <button type="button" id="load-template-project">重新加载老师模板</button>
+            {% endif %}
+            {% if can_write_work %}
+            <button type="button" id="save-project">保存进度</button>
+            <button type="button" id="submit-project" class="primary">提交给老师</button>
+            {% endif %}
+            {% else %}
+            <button type="button" id="load-project">加载预设代码</button>
             {% endif %}
             {% if project_url %}
             <a class="button-link" href="{{ project_url }}" target="_blank" rel="noreferrer">下载当前 sb3</a>
@@ -210,7 +223,7 @@
         ></iframe>
     </main>
 
-    {% if work %}
+    {% if work and can_write_work %}
     <form id="fallback-save-form" class="fallback">
         <strong>备用保存</strong>
         <input type="file" name="file" accept=".sb3,.sb2">
@@ -227,7 +240,8 @@
         const status = document.getElementById("editor-status");
         const pendingExports = new Map();
         let frameReady = false;
-        let projectLoaded = false;
+        let projectLoadedSource = "";
+        let loadingProjectSource = "";
 
         function setStatus(text, tone = "") {
             status.textContent = text;
@@ -274,8 +288,23 @@
             return data;
         }
 
-        async function loadProjectFromUrl(force = false) {
-            if (!context.projectUrl) {
+        function projectSource(source = "initial") {
+            const initial = context.projectUrl || context.savedProjectUrl || context.templateProjectUrl;
+            if (source === "saved") {
+                return { url: context.savedProjectUrl || initial, label: "上次保存进度" };
+            }
+            if (source === "template") {
+                return { url: context.templateProjectUrl || initial, label: "老师模板代码" };
+            }
+            return {
+                url: initial,
+                label: context.initialProjectSource === "saved" ? "上次保存进度" : "预设代码"
+            };
+        }
+
+        async function loadProjectFromUrl(source = "initial", force = false) {
+            const target = projectSource(source);
+            if (!target.url) {
                 setStatus("当前没有可加载的预设代码文件。", "error");
                 return;
             }
@@ -283,16 +312,17 @@
                 setStatus("Scratch GUI 仍在加载，请稍后再试。");
                 return;
             }
-            if (projectLoaded && !force) return;
+            if (projectLoadedSource === source && !force) return;
             try {
-                setStatus("正在加载预设代码到 Scratch GUI...");
-                const response = await fetch(context.projectUrl, { credentials: "include" });
+                setStatus(`正在加载${target.label}到 Scratch GUI...`);
+                const response = await fetch(target.url, { credentials: "include" });
                 if (!response.ok) {
                     throw new Error(`下载 sb3 失败：${response.status}`);
                 }
                 const content = await response.arrayBuffer();
                 const requestId = `load-${Date.now()}`;
                 const filename = `${context.title || "scratch-project"}.sb3`;
+                loadingProjectSource = source;
                 postToEditor(
                     { type: "SCRATCH_OJ_LOAD_SB3", requestId, filename, content },
                     [content]
@@ -320,10 +350,10 @@
 
         async function saveProject(operation = "save") {
             if (!context.saveEndpoint) {
-                setStatus("模板预览模式不保存，请从学生作品入口进入后保存。", "error");
+                setStatus("预览模式不保存，请从学生自己的作品入口进入后提交给老师。", "error");
                 return null;
             }
-            setStatus(operation === "submit" ? "正在导出并保存作品..." : "正在保存作品...");
+            setStatus(operation === "submit" ? "正在导出当前编辑器代码并提交给老师..." : "正在保存当前编辑器代码进度...");
             const result = await exportProject(operation);
             const projectBase64 = arrayBufferToBase64(result.content);
             const data = await requestJson(context.saveEndpoint, {
@@ -332,10 +362,15 @@
                 body: JSON.stringify({
                     title: (result.title || context.title || "").replace(/\.sb3$/i, ""),
                     project_base64: projectBase64,
+                    thumbnail_base64: result.thumbnail_base64 || result.thumbnail || "",
                     editor_url: frame.src,
+                    save_mode: operation === "submit" ? "submit" : "draft",
                 })
             });
-            setStatus(`已保存：${data.work.title}`, "success");
+            if (data.work?.asset_url) {
+                context.savedProjectUrl = new URL(data.work.asset_url, window.location.origin).href;
+            }
+            setStatus(operation === "submit" ? `已保存当前代码，正在提交给老师：${data.work.title}` : `已保存进度：${data.work.title}`, "success");
             return data.work;
         }
 
@@ -345,9 +380,9 @@
                 const data = await requestJson(context.submitEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ submit_note: "从 Scratch 图形化编辑器提交" })
+                    body: JSON.stringify({ submit_note: "从 Scratch 图形化编辑器提交给老师" })
                 });
-                setStatus(`已提交：${data.work.title}`, "success");
+                setStatus(`已提交给老师：${data.work.title}`, "success");
             } catch (error) {
                 setStatus(error.message || "提交失败。", "error");
             }
@@ -361,8 +396,10 @@
             if (!payload || !payload.type) return;
 
             if (payload.type === "SCRATCH_OJ_LOAD_SUCCESS") {
-                projectLoaded = true;
-                setStatus(payload.filename ? `已加载：${payload.filename}` : "已加载预设代码。", "success");
+                projectLoadedSource = loadingProjectSource || "initial";
+                loadingProjectSource = "";
+                const sourceLabel = projectSource(projectLoadedSource).label;
+                setStatus(payload.filename ? `已加载${sourceLabel}：${payload.filename}` : `已加载${sourceLabel}。`, "success");
                 return;
             }
 
@@ -401,7 +438,9 @@
                         body: JSON.stringify({
                             title: (payload.title || payload.filename || context.title || "").replace(/\.sb3$/i, ""),
                             project_base64: projectBase64,
+                            thumbnail_base64: payload.thumbnail_base64 || payload.thumbnail || "",
                             editor_url: frame.src,
+                            save_mode: "submit",
                         })
                     });
                     const data = await requestJson(context.submitEndpoint, {
@@ -409,7 +448,7 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ submit_note: "从 Scratch GUI 提交" })
                     });
-                    setStatus(`已提交：${data.work.title}`, "success");
+                    setStatus(`已提交给老师：${data.work.title}`, "success");
                 } catch (error) {
                     setStatus(error.message || "提交失败。", "error");
                 }
@@ -418,13 +457,25 @@
 
         frame.addEventListener("load", () => {
             frameReady = true;
-            setStatus("Scratch GUI 已加载，正在载入预设代码...");
-            window.setTimeout(() => loadProjectFromUrl(), 500);
+            setStatus("Scratch GUI 已加载，正在载入代码...");
+            window.setTimeout(() => loadProjectFromUrl("initial"), 500);
         });
 
         document.getElementById("load-project")?.addEventListener("click", () => {
-            projectLoaded = false;
-            void loadProjectFromUrl(true);
+            projectLoadedSource = "";
+            void loadProjectFromUrl("initial", true);
+        });
+
+        document.getElementById("load-saved-project")?.addEventListener("click", () => {
+            projectLoadedSource = "";
+            void loadProjectFromUrl("saved", true);
+        });
+
+        document.getElementById("load-template-project")?.addEventListener("click", () => {
+            const ok = window.confirm("重新加载老师模板会覆盖当前编辑器中尚未保存的修改，确认继续？");
+            if (!ok) return;
+            projectLoadedSource = "";
+            void loadProjectFromUrl("template", true);
         });
 
         document.getElementById("save-project")?.addEventListener("click", async () => {
