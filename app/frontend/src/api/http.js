@@ -41,6 +41,9 @@ export const api = {
   studentMe() {
     return request('/api/student/me')
   },
+  studentLesson(id) {
+    return request(`/api/student/lessons/${id}`)
+  },
   parentMe() {
     return request('/api/parent/me')
   },

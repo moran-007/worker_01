@@ -20,6 +20,7 @@ const UsersView = () => import('../views/UsersView.vue')
 const LogsView = () => import('../views/LogsView.vue')
 const DatabaseView = () => import('../views/DatabaseView.vue')
 const StudentPortalView = () => import('../views/StudentPortalView.vue')
+const StudentLessonView = () => import('../views/StudentLessonView.vue')
 const ParentPortalView = () => import('../views/ParentPortalView.vue')
 
 const router = createRouter({
@@ -27,6 +28,7 @@ const router = createRouter({
   routes: [
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
     { path: '/student', name: 'studentPortal', component: StudentPortalView, meta: { standalone: true, role: 'student' } },
+    { path: '/student/lessons/:id', name: 'studentLesson', component: StudentLessonView, meta: { standalone: true, role: 'student' } },
     { path: '/parent', name: 'parentPortal', component: ParentPortalView, meta: { standalone: true, role: 'parent' } },
     { path: '/', name: 'dashboard', component: DashboardView, meta: { permission: 'dashboard.view' } },
     { path: '/students', name: 'students', component: StudentsView, meta: { permission: 'students.view' } },
@@ -66,8 +68,8 @@ router.beforeEach(async (to) => {
   } catch {
     return { path: '/login' }
   }
-  if (isStudentUser(currentUser) && to.path !== '/student') return { path: '/student' }
-  if (isParentUser(currentUser) && to.path !== '/parent') return { path: '/parent' }
+  if (isStudentUser(currentUser) && !to.path.startsWith('/student')) return { path: '/student' }
+  if (isParentUser(currentUser) && !to.path.startsWith('/parent')) return { path: '/parent' }
   if (to.meta.role && currentUser?.role !== to.meta.role) return { path: '/' }
   if (to.meta.permission && !hasPermission(currentUser, to.meta.permission)) return { path: '/' }
   return true

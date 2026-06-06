@@ -461,6 +461,27 @@ def create_app() -> Flask:
         portal = redact_student_hours(build_student_portal_context(g.current_user["student_id"]))
         return jsonify({"ok": True, "portal": portal})
 
+    @app.get("/api/student/lessons/<int:lesson_id>")
+    def api_student_lesson_detail(lesson_id: int):
+        user = g.current_user
+        if normalize_role(user["role"]) != "student" or not user.get("student_id"):
+            return api_error("当前账号不是学生账号。", 403)
+        student_id = int(user["student_id"])
+        if not student_can_access_lesson(student_id, lesson_id):
+            return api_error("只能查看自己相关的课次。", 403)
+        lesson = get_lesson(lesson_id)
+        if lesson is None:
+            abort(404)
+        return jsonify(
+            {
+                "ok": True,
+                "lesson": dict(lesson),
+                "detail": get_lesson_detail(lesson_id),
+                "courseware_assets": rows_to_dicts(query_student_lesson_courseware_assets(student_id, lesson_id)),
+                "scratch_tasks": rows_to_dicts(query_student_lesson_scratch_tasks(student_id, lesson_id)),
+            }
+        )
+
     @app.post("/student/scratch/tasks/<int:lesson_id>/<int:template_id>/start")
     def student_start_scratch_task(lesson_id: int, template_id: int):
         user = g.current_user
@@ -595,6 +616,7 @@ def create_app() -> Flask:
     def scratch_editor():
         work_id = parse_int(request.args.get("work_id"))
         template_id = parse_int(request.args.get("template_id"))
+        return_url = safe_internal_return_url(request.args.get("return_url"))
         work = get_scratch_work(work_id) if work_id else None
         if work is not None:
             ensure_scratch_work_access(work, write=False)
@@ -642,6 +664,7 @@ def create_app() -> Flask:
             "saveEndpoint": url_for("api_editor_save_scratch_work", work_id=work["id"]) if can_write_work else "",
             "fallbackSaveEndpoint": url_for("api_save_scratch_work", work_id=work["id"]) if can_write_work else "",
             "submitEndpoint": url_for("api_submit_scratch_work", work_id=work["id"]) if can_write_work else "",
+            "returnUrl": return_url,
         }
         return render_template(
             "scratch_editor.html",
@@ -3917,6 +3940,30 @@ def query_student_courseware_assets(student_id: int):
     )
 
 
+def query_student_lesson_courseware_assets(student_id: int, lesson_id: int):
+    return fetch_all(
+        """
+        SELECT la.id AS lesson_asset_id, la.lesson_id, la.title, la.note,
+               a.id AS asset_id, a.original_filename, a.public_path, a.mime_type, a.file_size,
+               l.lesson_date, l.start_time, l.end_time, l.lesson_topic,
+               c.class_name, c.course_name
+        FROM lesson_assets la
+        JOIN uploaded_assets a ON a.id = la.asset_id
+        JOIN lessons l ON l.id = la.lesson_id
+        JOIN classes c ON c.id = l.class_id
+        JOIN class_students cs ON cs.class_id = c.id
+        WHERE cs.student_id = ?
+          AND l.id = ?
+          AND cs.status = 'active'
+          AND la.status = 'active'
+          AND a.status = 'uploaded'
+          AND l.status != 'cancelled'
+        ORDER BY la.created_at DESC, la.id DESC
+        """,
+        (student_id, lesson_id),
+    )
+
+
 def build_student_portal_context(student_id: int) -> dict:
     student = fetch_one(
         """
@@ -5052,6 +5099,15 @@ def origin_from_url(url: str | None) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+def safe_internal_return_url(value: str | None) -> str:
+    text = (value or "").strip()
+    if not text or not text.startswith("/") or text.startswith("//"):
+        return ""
+    if text.startswith(("/api/", "/static/", "/assets/")):
+        return ""
+    return text
+
+
 def query_scratch_templates(filters: dict | None = None):
     filters = filters or {}
     conditions = []
@@ -5558,6 +5614,38 @@ def query_student_scratch_tasks(student_id: int):
         LIMIT 12
         """,
         (student_id,),
+    )
+
+
+def query_student_lesson_scratch_tasks(student_id: int, lesson_id: int):
+    return fetch_all(
+        """
+        SELECT lst.lesson_id, lst.template_id,
+               COALESCE(NULLIF(lst.assignment_title, ''), st.title) AS title,
+               COALESCE(NULLIF(lst.statement_md, ''), st.description) AS description,
+               lst.bind_note, lst.due_at, lst.max_score, lst.auto_judge,
+               l.lesson_date, l.start_time, l.end_time, c.class_name,
+               sw.id AS work_id, sw.status AS work_status, sw.score, sw.review_comment,
+               sw.judge_status, sw.judge_score, sw.visibility, sw.like_count, sw.favorite_count,
+               sw.submitted_at, sw.reviewed_at
+        FROM lesson_scratch_templates lst
+        JOIN scratch_templates st ON st.id = lst.template_id
+        JOIN lessons l ON l.id = lst.lesson_id
+        JOIN classes c ON c.id = l.class_id
+        JOIN class_students cs ON cs.class_id = c.id
+        LEFT JOIN scratch_works sw
+          ON sw.lesson_id = lst.lesson_id
+         AND sw.template_id = lst.template_id
+         AND sw.student_id = cs.student_id
+        WHERE cs.student_id = ?
+          AND l.id = ?
+          AND cs.status = 'active'
+          AND lst.status = 'active'
+          AND st.status = 'active'
+          AND l.status != 'cancelled'
+        ORDER BY lst.created_at DESC, lst.id DESC
+        """,
+        (student_id, lesson_id),
     )
 
 

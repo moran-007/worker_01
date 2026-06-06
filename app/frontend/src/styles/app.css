@@ -464,6 +464,43 @@ body {
   color: var(--muted);
 }
 
+.portal-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lesson-note-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.lesson-note-card {
+  min-height: 126px;
+  padding: 16px;
+  border: 1px solid #e5edf7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.lesson-note-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--blue);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.lesson-note-card p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .data-card .el-card__header,
 .section-card .el-card__header {
   background: #fbfdff;
@@ -669,6 +706,12 @@ body {
 
 .classroom-card-actions {
   justify-content: flex-end;
+}
+
+.teacher-classroom-page {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
 }
 
 .lesson-detail-meta {
@@ -932,6 +975,7 @@ body {
   .quick-actions,
   .workbench-page,
   .classroom-card-grid,
+  .lesson-note-grid,
   .scratch-workspace,
   .resource-workspace,
   .portal-grid,

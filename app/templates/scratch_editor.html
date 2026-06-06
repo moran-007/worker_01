@@ -110,6 +110,30 @@
             background: #fef2f2;
             color: var(--danger);
         }
+        .toast {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            z-index: 10;
+            max-width: min(420px, calc(100vw - 28px));
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+            color: var(--text);
+            font-size: 14px;
+        }
+        .toast.success {
+            border-color: #99f6e4;
+            background: #ecfdf5;
+            color: var(--success);
+        }
+        .toast.error {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: var(--danger);
+        }
         .editor-wrap {
             height: calc(100vh - 150px);
             min-height: 560px;
@@ -199,7 +223,7 @@
             <button type="button" id="load-template-project">重新加载老师模板</button>
             {% endif %}
             {% if can_write_work %}
-            <button type="button" id="save-project">保存进度</button>
+            <button type="button" id="save-project">暂存进度</button>
             <button type="button" id="submit-project" class="primary">提交给老师</button>
             {% endif %}
             {% else %}
@@ -208,11 +232,15 @@
             {% if project_url %}
             <a class="button-link" href="{{ project_url }}" target="_blank" rel="noreferrer">下载当前 sb3</a>
             {% endif %}
+            {% if editor_context.returnUrl %}
+            <a class="button-link" href="{{ editor_context.returnUrl }}">返回上课页</a>
+            {% endif %}
             <a class="button-link" href="{{ config.editor_url }}" target="_blank" rel="noreferrer">新窗口打开</a>
         </div>
     </header>
 
     <div id="editor-status" class="status">正在准备 Scratch GUI...</div>
+    <div id="editor-toast" class="toast" hidden></div>
 
     <main class="editor-wrap">
         <iframe
@@ -238,14 +266,38 @@
         const context = {{ editor_context | tojson }};
         const frame = document.getElementById("scratch-frame");
         const status = document.getElementById("editor-status");
+        const toast = document.getElementById("editor-toast");
+        const saveButton = document.getElementById("save-project");
+        const submitButton = document.getElementById("submit-project");
         const pendingExports = new Map();
         let frameReady = false;
         let projectLoadedSource = "";
         let loadingProjectSource = "";
+        let busy = false;
+        let toastTimer = 0;
 
         function setStatus(text, tone = "") {
             status.textContent = text;
             status.className = `status ${tone}`.trim();
+        }
+
+        function showToast(text, tone = "") {
+            if (!toast) return;
+            window.clearTimeout(toastTimer);
+            toast.textContent = text;
+            toast.className = `toast ${tone}`.trim();
+            toast.hidden = false;
+            toastTimer = window.setTimeout(() => {
+                toast.hidden = true;
+            }, tone === "error" ? 7000 : 4200);
+        }
+
+        function setBusy(active) {
+            busy = active;
+            if (saveButton) saveButton.disabled = active;
+            if (submitButton) submitButton.disabled = active;
+            if (saveButton) saveButton.textContent = active ? "处理中..." : "暂存进度";
+            if (submitButton) submitButton.textContent = active ? "正在提交..." : "提交给老师";
         }
 
         function parseMessage(data) {
@@ -277,6 +329,14 @@
                 binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
             }
             return btoa(binary);
+        }
+
+        function optionalBase64(value) {
+            if (!value) return "";
+            if (typeof value === "string") return value;
+            if (value instanceof ArrayBuffer) return arrayBufferToBase64(value);
+            if (ArrayBuffer.isView(value)) return arrayBufferToBase64(value.buffer);
+            return "";
         }
 
         async function requestJson(url, options = {}) {
@@ -353,8 +413,11 @@
                 setStatus("预览模式不保存，请从学生自己的作品入口进入后提交给老师。", "error");
                 return null;
             }
-            setStatus(operation === "submit" ? "正在导出当前编辑器代码并提交给老师..." : "正在保存当前编辑器代码进度...");
+            setStatus(operation === "submit" ? "正在导出当前编辑器代码并提交给老师..." : "正在暂存当前编辑器代码...");
             const result = await exportProject(operation);
+            if (!result || !result.content) {
+                throw new Error("Scratch GUI 没有返回项目文件，请稍后重试或使用备用上传。");
+            }
             const projectBase64 = arrayBufferToBase64(result.content);
             const data = await requestJson(context.saveEndpoint, {
                 method: "POST",
@@ -362,7 +425,7 @@
                 body: JSON.stringify({
                     title: (result.title || context.title || "").replace(/\.sb3$/i, ""),
                     project_base64: projectBase64,
-                    thumbnail_base64: result.thumbnail_base64 || result.thumbnail || "",
+                    thumbnail_base64: optionalBase64(result.thumbnail_base64 || result.thumbnail),
                     editor_url: frame.src,
                     save_mode: operation === "submit" ? "submit" : "draft",
                 })
@@ -370,11 +433,13 @@
             if (data.work?.asset_url) {
                 context.savedProjectUrl = new URL(data.work.asset_url, window.location.origin).href;
             }
-            setStatus(operation === "submit" ? `已保存当前代码，正在提交给老师：${data.work.title}` : `已保存进度：${data.work.title}`, "success");
+            setStatus(operation === "submit" ? `已保存当前代码，正在提交给老师：${data.work.title}` : `已暂存进度：${data.work.title}`, "success");
             return data.work;
         }
 
         async function submitProject() {
+            if (busy) return;
+            setBusy(true);
             try {
                 await saveProject("submit");
                 const data = await requestJson(context.submitEndpoint, {
@@ -383,8 +448,12 @@
                     body: JSON.stringify({ submit_note: "从 Scratch 图形化编辑器提交给老师" })
                 });
                 setStatus(`已提交给老师：${data.work.title}`, "success");
+                showToast("提交成功，老师已可以在上课页查看并点评。", "success");
             } catch (error) {
                 setStatus(error.message || "提交失败。", "error");
+                showToast(error.message || "提交失败。", "error");
+            } finally {
+                setBusy(false);
             }
         }
 
@@ -432,13 +501,14 @@
             if (payload.type === "SCRATCH_OJ_SUBMIT_SB3" && context.saveEndpoint) {
                 try {
                     const projectBase64 = arrayBufferToBase64(payload.content);
+                    setBusy(true);
                     await requestJson(context.saveEndpoint, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             title: (payload.title || payload.filename || context.title || "").replace(/\.sb3$/i, ""),
                             project_base64: projectBase64,
-                            thumbnail_base64: payload.thumbnail_base64 || payload.thumbnail || "",
+                            thumbnail_base64: optionalBase64(payload.thumbnail_base64 || payload.thumbnail),
                             editor_url: frame.src,
                             save_mode: "submit",
                         })
@@ -449,8 +519,12 @@
                         body: JSON.stringify({ submit_note: "从 Scratch GUI 提交" })
                     });
                     setStatus(`已提交给老师：${data.work.title}`, "success");
+                    showToast("提交成功，老师已可以在上课页查看并点评。", "success");
                 } catch (error) {
                     setStatus(error.message || "提交失败。", "error");
+                    showToast(error.message || "提交失败。", "error");
+                } finally {
+                    setBusy(false);
                 }
             }
         });
@@ -479,10 +553,16 @@
         });
 
         document.getElementById("save-project")?.addEventListener("click", async () => {
+            if (busy) return;
+            setBusy(true);
             try {
                 await saveProject("save");
+                showToast("暂存成功，下次进入会优先加载这次修改。", "success");
             } catch (error) {
                 setStatus(error.message || "保存失败。", "error");
+                showToast(error.message || "暂存失败。", "error");
+            } finally {
+                setBusy(false);
             }
         });
 

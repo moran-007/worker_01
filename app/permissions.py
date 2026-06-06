@@ -361,6 +361,7 @@ ENDPOINT_PERMISSIONS = {
     "api_update_role": "permissions.assign",
     "student_portal": "student_portal.view",
     "api_student_me": "student_portal.view",
+    "api_student_lesson_detail": "student_portal.view",
     "student_start_scratch_task": "scratch.works.manage",
     "student_portal_preview": "students.view",
     "api_student_portal": "students.view",

@@ -219,7 +219,7 @@ def run_validation() -> tuple[Validation, int]:
     parent = app.test_client()
 
     try:
-        for path in ["/", "/login", "/student", "/parent", "/teacher/prep", "/classroom", "/students", "/students/1/edit"]:
+        for path in ["/", "/login", "/student", "/student/lessons/1", "/parent", "/teacher/prep", "/classroom", "/students", "/students/1/edit"]:
             assert_vue_shell(v, admin, path)
         blocked = admin.post("/students", data={"name": "legacy"})
         v.require("Classic Flask form POST is disabled", blocked.status_code == 410, f"status={blocked.status_code}")
@@ -350,13 +350,26 @@ def run_validation() -> tuple[Validation, int]:
         tasks_response = student.get("/api/student/scratch/works")
         tasks = response_json(tasks_response).get("items") or []
         v.require("Student sees related Scratch task", tasks_response.status_code == 200 and any(item.get("template_id") == template_id for item in tasks), f"tasks={len(tasks)}")
+        student_lesson = student.get(f"/api/student/lessons/{lesson_id}")
+        student_lesson_json = response_json(student_lesson)
+        student_lesson_dump = json.dumps(student_lesson_json, ensure_ascii=False)
+        v.require(
+            "Student can open own lesson subpage data",
+            student_lesson.status_code == 200
+            and len(student_lesson_json.get("courseware_assets", [])) >= 1
+            and len(student_lesson_json.get("scratch_tasks", [])) >= 1
+            and seed["classmate_name"] not in student_lesson_dump,
+            f"status={student_lesson.status_code}",
+        )
+        outside_student_lesson = student.get(f"/api/student/lessons/{seed['other_lesson_id']}")
+        v.require("Student cannot open unrelated lesson subpage data", outside_student_lesson.status_code == 403, f"status={outside_student_lesson.status_code}")
         work_response = student.post(f"/api/lessons/{lesson_id}/scratch/templates/{template_id}/work")
         work = response_json(work_response).get("work") or {}
         work_id = work.get("id")
         v.require("Student copies template as personal work", work_response.status_code == 200 and work_id, f"work_id={work_id}")
         v.artifacts["work_id"] = work_id
 
-        student_editor = student.get(f"/scratch/editor?work_id={work_id}")
+        student_editor = student.get(f"/scratch/editor?work_id={work_id}&return_url=/student/lessons/{lesson_id}")
         student_editor_text = student_editor.get_data(as_text=True)
         v.require(
             "Student can open Scratch graphical work editor with draft and template actions",
@@ -366,8 +379,11 @@ def run_validation() -> tuple[Validation, int]:
             f"status={student_editor.status_code}",
         )
         v.require(
-            "Student editor exposes progress save, teacher template reload and teacher submit",
-            "保存进度" in student_editor_text and "重新加载老师模板" in student_editor_text and "提交给老师" in student_editor_text,
+            "Student editor exposes progress save, teacher template reload, teacher submit and return link",
+            "暂存进度" in student_editor_text
+            and "重新加载老师模板" in student_editor_text
+            and "提交给老师" in student_editor_text
+            and "返回上课页" in student_editor_text,
             f"status={student_editor.status_code}",
         )
 
@@ -409,8 +425,18 @@ def run_validation() -> tuple[Validation, int]:
         student_editor_after_save = student.get(f"/scratch/editor?work_id={work_id}")
         v.require(
             "Student editor loads personal saved progress after save",
-            student_editor_after_save.status_code == 200 and "加载上次保存" in student_editor_after_save.get_data(as_text=True),
+            student_editor_after_save.status_code == 200
+            and "加载上次保存" in student_editor_after_save.get_data(as_text=True)
+            and "暂存成功" in student_editor_after_save.get_data(as_text=True)
+            and "提交成功" in student_editor_after_save.get_data(as_text=True),
             f"status={student_editor_after_save.status_code}",
+        )
+        lesson_detail_shell = teacher.get(f"/lessons/{lesson_id}/detail?from=/classroom")
+        lesson_attendance_shell = teacher.get(f"/lessons/{lesson_id}/attendance?from=/classroom")
+        v.require(
+            "Teacher classroom child pages keep return-to-classroom route",
+            lesson_detail_shell.status_code == 200 and lesson_attendance_shell.status_code == 200,
+            f"detail={lesson_detail_shell.status_code}, attendance={lesson_attendance_shell.status_code}",
         )
 
         submit_response = student.post(f"/api/scratch/works/{work_id}/submit", json={"submit_note": "Ready for review"})
@@ -487,8 +513,10 @@ def write_report(v: Validation, exit_code: int) -> Path:
             "## P2 结论",
             "",
             "- 当前版本已完成老师上传课件、上传并绑定 Scratch 预设模板、学生复制模板为个人作品、从编辑器保存 .sb3 和缩略图、提交作品、教师查看与点评。",
-            "- 老师可从课次详情、教师备课入口或上课入口进入模板图形化预览；学生可从学生端预览模板，并从个人作品入口进入 Scratch GUI 保存进度和提交给老师。",
-            "- 学生作品页会优先加载上一次保存进度，同时保留重新加载老师模板的按钮；教师只能预览学生作品，不能替学生保存或提交。",
+            "- 学生端已增加课程二级页 `/student/lessons/<id>`：按课程名称进入后可查看课件、知识点、详情和我的作品，接口会拦截非本人课次。",
+            "- 老师可从课次详情、教师备课入口或上课入口进入模板图形化预览；学生可从学生端预览模板，并从个人作品入口进入 Scratch GUI 暂存进度和提交给老师。",
+            "- 学生作品页会优先加载上一次暂存进度，同时保留重新加载老师模板的按钮；暂存/提交按钮会给出成功或失败反馈；教师只能预览学生作品，不能替学生保存或提交。",
+            "- 教师上课端已改为接近学生端的卡片布局，课次详情、签到和 Scratch 编辑器都携带返回上课页入口。",
             "- 当前上课流程未启用测试点、自动判题或动态运行测评；提交后默认保持 `judge_status=not_started`，符合本轮“暂不考虑测试点”的范围。",
             "- 已补充 `.sb3/.sb2` 基础结构校验：模板或作品文件必须是可解析压缩包且包含 `project.json`。",
             "- Flask 经典展示页已禁用，GET 页面入口由 Vue shell 接管，非 API 表单写入返回 410。",

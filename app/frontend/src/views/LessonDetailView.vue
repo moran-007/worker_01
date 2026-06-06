@@ -8,8 +8,9 @@
             <p>{{ lessonSubtitle }}</p>
           </div>
           <div class="toolbar">
+            <el-button v-if="route.query.from" @click="backToSource">返回上课页</el-button>
             <el-button @click="backToLessons">返回课次</el-button>
-            <el-button @click="router.push(`/lessons/${route.params.id}/attendance`)">进入签到</el-button>
+            <el-button @click="goAttendance">进入签到</el-button>
             <el-button v-if="canManage" type="primary" :loading="saving" @click="saveDetail">保存详情</el-button>
           </div>
         </div>
@@ -445,11 +446,11 @@ function openBackend(path) {
 }
 
 function openTemplateEditor(row) {
-  openBackend(`/scratch/editor?template_id=${row.template_id}`)
+  openBackend(`/scratch/editor?template_id=${row.template_id}&return_url=${encodeURIComponent(returnUrl())}`)
 }
 
 function openEditor(work) {
-  openBackend(`/scratch/editor?work_id=${work.id}`)
+  openBackend(`/scratch/editor?work_id=${work.id}&return_url=${encodeURIComponent(returnUrl())}`)
 }
 
 async function saveReview(work) {
@@ -472,5 +473,24 @@ function backToLessons() {
     path: '/lessons',
     query: lesson.value?.lesson_date ? { date: lesson.value.lesson_date } : {}
   })
+}
+
+function backToSource() {
+  router.push(safeReturnPath(route.query.from) || '/classroom')
+}
+
+function goAttendance() {
+  router.push({ path: `/lessons/${route.params.id}/attendance`, query: route.query.from ? { from: route.query.from } : {} })
+}
+
+function returnUrl() {
+  return safeReturnPath(route.query.from) || `/lessons/${route.params.id}/detail?from=/classroom`
+}
+
+function safeReturnPath(value) {
+  const text = Array.isArray(value) ? value[0] : value
+  if (!text || typeof text !== 'string') return ''
+  if (!text.startsWith('/') || text.startsWith('//')) return ''
+  return text
 }
 </script>

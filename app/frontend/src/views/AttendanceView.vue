@@ -9,7 +9,8 @@
           </div>
           <div class="toolbar">
             <el-input v-if="canManage" v-model="operator" class="search-input" placeholder="操作人" />
-            <el-button @click="$router.push(`/lessons/${route.params.id}/detail`)">课程详情</el-button>
+            <el-button v-if="route.query.from" @click="backToSource">返回上课页</el-button>
+            <el-button @click="goLessonDetail">课程详情</el-button>
             <el-button v-if="canManage" @click="markAllPresent">一键全员已到</el-button>
             <el-button v-if="canManage" type="primary" :loading="saving" @click="saveAttendance">保存签到</el-button>
           </div>
@@ -43,12 +44,13 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { api } from '../api/http'
 import { hasPermission } from '../utils/permissions'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
 const lesson = ref(null)
@@ -115,5 +117,20 @@ async function saveAttendance() {
   } finally {
     saving.value = false
   }
+}
+
+function goLessonDetail() {
+  router.push({ path: `/lessons/${route.params.id}/detail`, query: route.query.from ? { from: route.query.from } : {} })
+}
+
+function backToSource() {
+  router.push(safeReturnPath(route.query.from) || '/classroom')
+}
+
+function safeReturnPath(value) {
+  const text = Array.isArray(value) ? value[0] : value
+  if (!text || typeof text !== 'string') return ''
+  if (!text.startsWith('/') || text.startsWith('//')) return ''
+  return text
 }
 </script>

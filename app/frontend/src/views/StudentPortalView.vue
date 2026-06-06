@@ -73,7 +73,10 @@
               <strong>{{ lesson.preset_course_name || lesson.lesson_topic || lesson.course_name || '课程安排' }}</strong>
               <span>{{ lesson.lesson_date }} {{ lesson.start_time || '' }}-{{ lesson.end_time || '' }}</span>
             </div>
-            <small>{{ lesson.class_name }}</small>
+            <div class="portal-item-actions">
+              <small>{{ lesson.class_name }}</small>
+              <el-button size="small" type="primary" plain @click="router.push(`/student/lessons/${lesson.id}`)">进入课程</el-button>
+            </div>
           </div>
           <el-empty v-if="!upcomingLessons.length" description="暂无近期课程" />
         </div>
@@ -144,11 +147,13 @@ function openBackend(path) {
 }
 
 function openTemplate(row) {
-  openBackend(`/scratch/editor?template_id=${row.template_id}`)
+  openBackend(`/scratch/editor?template_id=${row.template_id}&return_url=${encodeURIComponent(`/student/lessons/${row.lesson_id}`)}`)
 }
 
 function openEditor(workId) {
-  openBackend(`/scratch/editor?work_id=${workId}`)
+  const task = scratchTasks.value.find((item) => item.work_id === workId)
+  const returnUrl = task?.lesson_id ? `/student/lessons/${task.lesson_id}` : '/student'
+  openBackend(`/scratch/editor?work_id=${workId}&return_url=${encodeURIComponent(returnUrl)}`)
 }
 
 function scrollToClassroom() {
@@ -157,7 +162,7 @@ function scrollToClassroom() {
 
 function scratchStatusText(status) {
   return {
-    draft: '已保存',
+    draft: '已暂存',
     submitted: '已交老师',
     reviewed: '已点评'
   }[status] || '未开始'

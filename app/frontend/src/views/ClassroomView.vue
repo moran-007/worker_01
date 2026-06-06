@@ -1,58 +1,58 @@
 <template>
-  <div v-loading="loading" class="workbench-page">
-    <aside class="workbench-side">
-      <section class="workbench-panel hero blue">
-        <span>上课入口</span>
-        <strong>{{ todayLessonCount }}</strong>
-        <small>今日课次</small>
-      </section>
-      <section class="workbench-panel">
-        <div class="workbench-stat">
-          <span>待签到</span>
-          <strong>{{ plannedCount }}</strong>
-        </div>
-        <div class="workbench-stat">
-          <span>已完成</span>
-          <strong>{{ completedCount }}</strong>
-        </div>
-        <div class="workbench-stat">
-          <span>待点评作品</span>
-          <strong>{{ pendingReviewCount }}</strong>
-        </div>
-      </section>
-      <section class="workbench-panel">
-        <el-button type="primary" @click="router.push('/teacher/prep')">进入备课</el-button>
-        <el-button plain @click="router.push('/lessons')">课次列表</el-button>
-      </section>
-    </aside>
+  <main v-loading="loading" class="portal-page teacher-classroom-page">
+    <header class="portal-hero">
+      <div>
+        <span>教师上课端</span>
+        <h1>我的上课页面</h1>
+        <p>按课程进入课堂、签到、打开预设代码并处理学生作品。</p>
+      </div>
+      <div class="portal-actions">
+        <el-radio-group v-model="filters.scope" @change="loadData">
+          <el-radio-button label="day">今日</el-radio-button>
+          <el-radio-button label="week">本周</el-radio-button>
+        </el-radio-group>
+        <el-date-picker
+          v-model="filters.date"
+          value-format="YYYY-MM-DD"
+          type="date"
+          placeholder="选择日期"
+          @change="loadData"
+        />
+        <el-button type="primary" @click="loadData">刷新</el-button>
+        <el-button plain @click="router.push('/teacher/prep')">教师备课</el-button>
+      </div>
+    </header>
 
-    <el-card shadow="never" class="data-card workbench-main">
+    <section class="portal-metrics">
+      <article class="portal-metric">
+        <span>今日课次</span>
+        <strong>{{ todayLessonCount }}</strong>
+        <small>今天需要处理的课程</small>
+      </article>
+      <article class="portal-metric">
+        <span>待签到</span>
+        <strong>{{ plannedCount }}</strong>
+        <small>计划中未完成签到</small>
+      </article>
+      <article class="portal-metric">
+        <span>已完成</span>
+        <strong>{{ completedCount }}</strong>
+        <small>已完成课次</small>
+      </article>
+      <article class="portal-metric">
+        <span>待点评</span>
+        <strong>{{ pendingReviewCount }}</strong>
+        <small>已提交待老师点评作品</small>
+      </article>
+    </section>
+
+    <el-card shadow="never" class="portal-card classroom-focus-card">
       <template #header>
-        <div class="card-header">
-          <div>
-            <strong>课堂控制台</strong>
-            <p>按日期进入课堂、签到、预览模板并处理学生作品。</p>
-          </div>
-          <div class="toolbar">
-            <el-radio-group v-model="filters.scope" @change="loadData">
-              <el-radio-button label="day">今日</el-radio-button>
-              <el-radio-button label="week">本周</el-radio-button>
-            </el-radio-group>
-            <el-date-picker
-              v-model="filters.date"
-              value-format="YYYY-MM-DD"
-              type="date"
-              placeholder="选择日期"
-              @change="loadData"
-            />
-            <el-button type="primary" @click="loadData">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
-          </div>
+        <div class="table-title">
+          <span>课堂列表</span>
+          <span>{{ lessons.length }} 节</span>
         </div>
       </template>
-
       <div class="classroom-card-grid">
         <article v-for="lesson in lessons" :key="lesson.id" class="classroom-card">
           <div class="classroom-card-title">
@@ -74,7 +74,7 @@
           </div>
           <div class="classroom-card-actions">
             <el-button type="primary" @click="openDetail(lesson)">进入课堂</el-button>
-            <el-button @click="router.push(`/lessons/${lesson.id}/attendance`)">签到</el-button>
+            <el-button @click="router.push({ path: `/lessons/${lesson.id}/attendance`, query: { from: '/classroom' } })">签到</el-button>
             <el-button v-if="lesson.first_template_id" plain @click="openTemplate(lesson)">打开模板</el-button>
             <el-button plain @click="openDetail(lesson)">作品点评</el-button>
           </div>
@@ -82,7 +82,7 @@
         <el-empty v-if="!lessons.length" description="当前范围暂无课次" />
       </div>
     </el-card>
-  </div>
+  </main>
 </template>
 
 <script setup>
@@ -127,7 +127,7 @@ async function enrichLessons(items) {
         courseware_count: (detail.courseware_assets || []).length,
         template_count: assignments.length,
         work_count: works.length,
-        submitted_work_count: works.filter((work) => ['submitted', 'reviewed'].includes(work.status)).length,
+        submitted_work_count: works.filter((work) => work.status === 'submitted').length,
         first_template_id: assignments[0]?.template_id || null
       }
     } catch {
@@ -137,11 +137,11 @@ async function enrichLessons(items) {
 }
 
 function openDetail(row) {
-  router.push(`/lessons/${row.id}/detail`)
+  router.push({ path: `/lessons/${row.id}/detail`, query: { from: '/classroom' } })
 }
 
 function openTemplate(row) {
-  window.open(`${backendOrigin}/scratch/editor?template_id=${row.first_template_id}`, '_blank', 'noopener,noreferrer')
+  window.open(`${backendOrigin}/scratch/editor?template_id=${row.first_template_id}&return_url=${encodeURIComponent('/classroom')}`, '_blank', 'noopener,noreferrer')
 }
 
 function courseText(row) {
